@@ -14,6 +14,7 @@
 		B1BD389116F5A15B00A3A7C7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B1BD388F16F5A15B00A3A7C7 /* InfoPlist.strings */; };
 		B1BD389416F5A15B00A3A7C7 /* CUFutureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389316F5A15B00A3A7C7 /* CUFutureTests.m */; };
 		B1BD389F16F5A18E00A3A7C7 /* CUFuture.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */; };
+		B1DF4A7916F5B52F0031C706 /* NSManagedObjectContext+Future.m in Sources */ = {isa = PBXBuildFile; fileRef = B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +51,8 @@
 		B1BD389316F5A15B00A3A7C7 /* CUFutureTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CUFutureTests.m; sourceTree = "<group>"; };
 		B1BD389D16F5A18E00A3A7C7 /* CUFuture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CUFuture.h; sourceTree = "<group>"; };
 		B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CUFuture.m; sourceTree = "<group>"; };
+		B1DF4A7716F5B52F0031C706 /* NSManagedObjectContext+Future.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSManagedObjectContext+Future.h"; sourceTree = "<group>"; };
+		B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSManagedObjectContext+Future.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +110,8 @@
 			children = (
 				B1BD389D16F5A18E00A3A7C7 /* CUFuture.h */,
 				B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */,
+				B1DF4A7716F5B52F0031C706 /* NSManagedObjectContext+Future.h */,
+				B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */,
 				B1BD387816F5A15B00A3A7C7 /* Supporting Files */,
 			);
 			path = ConcurrencyUtils;
@@ -238,6 +243,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1BD389F16F5A18E00A3A7C7 /* CUFuture.m in Sources */,
+				B1DF4A7916F5B52F0031C706 /* NSManagedObjectContext+Future.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -397,6 +403,7 @@
 				B1BD389916F5A15B00A3A7C7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		B1BD389A16F5A15B00A3A7C7 /* Build configuration list for PBXNativeTarget "ConcurrencyUtilsTests" */ = {
 			isa = XCConfigurationList;
@@ -405,6 +412,7 @@
 				B1BD389C16F5A15B00A3A7C7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
