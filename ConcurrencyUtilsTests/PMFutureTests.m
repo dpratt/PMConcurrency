@@ -6,11 +6,11 @@
 //  Copyright (c) 2013 David Pratt. All rights reserved.
 //
 
-#import "CUFutureTests.h"
+#import "PMFutureTests.h"
 
-#import "CUFuture.h"
+#import "PMFuture.h"
 
-@implementation CUFutureTests
+@implementation PMFutureTests
 
 - (void)setUp {
     [super setUp];
@@ -21,7 +21,7 @@
 }
 
 - (void)testSuccess {
-    CUFuture *future = [CUFuture future];
+    PMFuture *future = [PMFuture future];
     [future tryComplete:@1];
     
     STAssertTrue(future.isCompleted, @"Future is not completed.");
@@ -31,7 +31,7 @@
 }
 
 - (void)testFailure {
-    CUFuture *future = [CUFuture future];
+    PMFuture *future = [PMFuture future];
     [future tryFail:[NSError errorWithDomain:@"DummyDomain" code:100 userInfo:nil]];
     
     STAssertTrue(future.isCompleted, @"Future is not completed.");
@@ -41,23 +41,23 @@
 }
 
 - (void)testCompleteWith {
-    CUFuture *future = [CUFuture future];
-    [future completeWith:[CUFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+    PMFuture *future = [PMFuture future];
+    [future completeWith:[PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
         return @"Hi there.";
     }]];
     
     NSError *blockingError = nil;
-    id value = [CUFuture awaitResult:future withTimeout:0.1 andError:&blockingError];
+    id value = [PMFuture awaitResult:future withTimeout:0.1 andError:&blockingError];
     STAssertNotNil(value, @"Expected a non-nil value.");
     STAssertEqualObjects(value, @"Hi there.", @"Expected value to be \"Hi there.\" got %@", value);
 }
 
 - (void)testMap {
-    CUFuture *future = [[CUFuture futureWithResult:@1] map:^id(id result) {
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result) {
         return [NSNumber numberWithInt:[result intValue] + 1];
     }];
 
-    id value = [CUFuture awaitResult:future withTimeout:10.0 andError:nil];
+    id value = [PMFuture awaitResult:future withTimeout:10.0 andError:nil];
     
     STAssertTrue(future.isSuccess, @"Future is not successful.");
     STAssertEqualObjects(value, @2, @"Expected result of future to be 2.");
@@ -66,20 +66,20 @@
 - (void)testSequence {
     
     NSArray *futures = @[
-                         [CUFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
                              return @1;
                          }],
-                         [CUFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
                              return @2;
                          }],
-                         [CUFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
                              return @3;
                          }]
                          ];
     
-    CUFuture *result = [CUFuture sequenceFutures:futures];
+    PMFuture *result = [PMFuture sequenceFutures:futures];
 
-    id value = [CUFuture awaitResult:result withTimeout:10.0 andError:nil];
+    id value = [PMFuture awaitResult:result withTimeout:10.0 andError:nil];
     
     STAssertTrue(result.isSuccess, @"Future is not successful.");
     //STAssertNil(error, @"Error is not nil - %@", error);
@@ -95,13 +95,13 @@
 
 - (void)testBlockingTimeout {
     
-    CUFuture *future = [CUFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+    PMFuture *future = [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
         [NSThread sleepForTimeInterval:0.5];
         return @"Hi there.";
     }];
 
     NSError *timeoutError = nil;
-    [CUFuture awaitResult:future withTimeout:0.1 andError:&timeoutError];
+    [PMFuture awaitResult:future withTimeout:0.1 andError:&timeoutError];
     STAssertNotNil(timeoutError, @"Expected a timeout error.");
     
 }

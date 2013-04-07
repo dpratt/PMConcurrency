@@ -1,15 +1,15 @@
 //
-//  CUFuture.m
+//  PMFuture.m
 //
 //  Created by David Pratt on 3/14/13.
 //  Copyright (c) 2013 David Pratt. All rights reserved.
 //
 
-#import "CUFuture.h"
+#import "PMFuture.h"
 
 typedef void (^callback_block)(void);
 
-NSString * const kCUFutureErrorDomain = @"CUFutureErrorDomain";
+NSString * const kPMFutureErrorDomain = @"PMFutureErrorDomain";
 
 typedef enum {
     Incomplete = 0,
@@ -18,7 +18,7 @@ typedef enum {
     Cancelled = 3
 } FutureState;
 
-@interface CUFuture () {
+@interface PMFuture () {
     dispatch_queue_t _queue;
     NSMutableArray *_callbacks;
     id _value;
@@ -28,18 +28,18 @@ typedef enum {
     FutureState _state;
 }
 
-@property (nonatomic, strong) CUFuture *parentFuture;
+@property (nonatomic, strong) PMFuture *parentFuture;
 
 @end
 
-@implementation CUFuture
+@implementation PMFuture
 
 + (instancetype)future {
-    return [[CUFuture alloc] init];
+    return [[PMFuture alloc] init];
 }
 
 + (instancetype)futureWithQueue:(dispatch_queue_t)queue {
-    return [[CUFuture alloc] initWithQueue:queue];
+    return [[PMFuture alloc] initWithQueue:queue];
 }
 
 + (instancetype)futureWithBlock:(future_block)block {
@@ -53,7 +53,7 @@ typedef enum {
                                      userInfo:nil];
     }
     
-    CUFuture *retval = [[CUFuture alloc] initWithQueue:queue];
+    PMFuture *retval = [[PMFuture alloc] initWithQueue:queue];
     dispatch_async(queue, ^{
         NSError *error = nil;
         id result = block(&error);
@@ -67,21 +67,21 @@ typedef enum {
 }
 
 + (instancetype)futureWithResult:(id)result {
-    CUFuture *future = [self future];
+    PMFuture *future = [self future];
     [future tryComplete:result];
     return future;
 }
 
 + (instancetype)futureWithError:(NSError *)error {
-    CUFuture *future = [self future];
+    PMFuture *future = [self future];
     [future tryFail:error];
     return future;    
 }
 
 + (instancetype)sequenceFutures:(NSArray *)futures {
-    CUFuture *promise = [CUFuture futureWithResult:[NSMutableArray arrayWithCapacity:futures.count]];
-    for(CUFuture *future in futures) {
-        promise = [promise flatMap:^CUFuture *(NSMutableArray *promiseResult) {
+    PMFuture *promise = [PMFuture futureWithResult:[NSMutableArray arrayWithCapacity:futures.count]];
+    for(PMFuture *future in futures) {
+        promise = [promise flatMap:^PMFuture *(NSMutableArray *promiseResult) {
             return [future map:^id(id result) {
                 [promiseResult addObject:result];
                 return promiseResult;
@@ -94,7 +94,7 @@ typedef enum {
 /*
  Await the result of the supplied future. THIS METHOD BLOCKS THE CURRENT THREAD.
  */
-+ (id)awaitResult:(CUFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error {
++ (id)awaitResult:(PMFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error {
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     __block id futureResult = nil;
     
@@ -130,8 +130,8 @@ typedef enum {
     [_stateLock lock];
     if(error == nil) {
         //we're being marked as a failure, but with no error.
-        _error = [NSError errorWithDomain:kCUFutureErrorDomain
-                                     code:kCUFutureErrorUnknown
+        _error = [NSError errorWithDomain:kPMFutureErrorDomain
+                                     code:kPMFutureErrorUnknown
                                  userInfo:@{NSLocalizedDescriptionKey : @"Future marked as failed, but with no supplied error."}];
     } else {
         _error = error;
@@ -141,7 +141,7 @@ typedef enum {
     return didComplete;
 }
 
-- (BOOL)completeWith:(CUFuture *)otherFuture {
+- (BOOL)completeWith:(PMFuture *)otherFuture {
     [_stateLock lock];
     BOOL didComplete = NO;
     if(!self.isCompleted && _parentFuture == nil) {
@@ -167,8 +167,8 @@ typedef enum {
         //cancel our parent first
         [_parentFuture cancel];
         
-        _error = [NSError errorWithDomain:kCUFutureErrorDomain
-                                     code:kCUFutureErrorCancelled
+        _error = [NSError errorWithDomain:kPMFutureErrorDomain
+                                     code:kPMFutureErrorCancelled
                                  userInfo:@{NSLocalizedDescriptionKey : @"The future has been cancelled."}];
         //now transition our state
         [self complete:Cancelled];
@@ -198,7 +198,7 @@ typedef enum {
 
 - (void)onSuccess:(void (^)(id result))successBlock {
     if(successBlock == nil) return;
-    __weak CUFuture *weakSelf = self;
+    __weak PMFuture *weakSelf = self;
     [self invokeOrAddCallback:^{
         if(weakSelf.isSuccess) {
             successBlock(_value);
@@ -208,7 +208,7 @@ typedef enum {
 
 - (void)onFailure:(void (^)(NSError *error))failureBlock {
     if(failureBlock == nil) return;
-    __weak CUFuture *weakSelf = self;
+    __weak PMFuture *weakSelf = self;
     [self invokeOrAddCallback:^{
         if(weakSelf.isFailed) {
             failureBlock(_error);
@@ -220,7 +220,7 @@ typedef enum {
     if(completeBlock == nil) return;
     //use weakSelf because otherwise the block below would capture
     //self and we'd get a retain cycle.
-    __weak CUFuture *weakSelf = self;
+    __weak PMFuture *weakSelf = self;
     [self invokeOrAddCallback:^{
         //don't run completion blocks for cancelled futures
         if(!weakSelf.isCancelled) {
@@ -231,7 +231,7 @@ typedef enum {
 
 - (void)onCancel:(void (^)())cancelBlock {
     if(cancelBlock == nil) return;
-    __weak CUFuture *weakSelf = self;
+    __weak PMFuture *weakSelf = self;
     [self invokeOrAddCallback:^{
         if(weakSelf.isCancelled) {
             cancelBlock();
@@ -239,10 +239,10 @@ typedef enum {
     }];
 }
 
-- (CUFuture *)map:(id (^)(id result))mapper {
+- (PMFuture *)map:(id (^)(id result))mapper {
     if(mapper == nil) return self;
     
-    CUFuture *promise = [[CUFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *promise = [[PMFuture alloc] initWithQueue:_queue andParent:self];
     
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
@@ -256,16 +256,16 @@ typedef enum {
     return promise;
 }
 
-- (CUFuture *)flatMap:(CUFuture *(^)(id result))mapper {
+- (PMFuture *)flatMap:(PMFuture *(^)(id result))mapper {
     if(mapper == nil) return self;
     
-    CUFuture *promise = [[CUFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *promise = [[PMFuture alloc] initWithQueue:_queue andParent:self];
     
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
             [promise tryFail:error];
         } else {
-            CUFuture *nested = mapper(result);
+            PMFuture *nested = mapper(result);
             [nested onComplete:^(id result, NSError *error) {
                 if(error != nil) {
                     [promise tryFail:error];
@@ -279,10 +279,10 @@ typedef enum {
     return promise;
 }
 
-- (CUFuture *)recover:(recover_block)recoverBlock {
+- (PMFuture *)recover:(recover_block)recoverBlock {
     if(recoverBlock == nil) return self;
     
-    CUFuture *other = [[CUFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *other = [[PMFuture alloc] initWithQueue:_queue andParent:self];
     [self onFailure:^(NSError *error) {
         NSError *internalError = error;
         id result = recoverBlock(&internalError);
@@ -295,13 +295,13 @@ typedef enum {
     return other;
 }
 
-- (CUFuture *)recoverWith:(flat_recover_block)recoverBlock {
+- (PMFuture *)recoverWith:(flat_recover_block)recoverBlock {
     if(recoverBlock == nil) return self;
     
-    CUFuture *other = [[CUFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *other = [[PMFuture alloc] initWithQueue:_queue andParent:self];
     [self onFailure:^(NSError *error) {
         NSError *internalError = error;
-        CUFuture *result = recoverBlock(&internalError);
+        PMFuture *result = recoverBlock(&internalError);
         if(internalError != nil) {
             [other tryFail:internalError];
         } else {
@@ -311,8 +311,8 @@ typedef enum {
     return other;
 }
 
-- (CUFuture *)withTimeout:(NSTimeInterval)timeout {
-    CUFuture *timeoutFuture = [[CUFuture alloc] initWithQueue:_queue];
+- (PMFuture *)withTimeout:(NSTimeInterval)timeout {
+    PMFuture *timeoutFuture = [[PMFuture alloc] initWithQueue:_queue];
     
     //complete the timeout future when we complete
     [timeoutFuture completeWith:self];
@@ -331,8 +331,8 @@ typedef enum {
     dispatch_source_t timeoutTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, timeoutQueue);
     dispatch_source_set_timer(timeoutTimer, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC), DISPATCH_TIME_FOREVER, 0);
     dispatch_source_set_event_handler(timeoutTimer, ^{
-        [timeoutFuture tryFail:[NSError errorWithDomain:kCUFutureErrorDomain
-                                                   code:kCUFutureErrorTimeout
+        [timeoutFuture tryFail:[NSError errorWithDomain:kPMFutureErrorDomain
+                                                   code:kPMFutureErrorTimeout
                                                userInfo:@{NSLocalizedDescriptionKey : @"The future timed out."}]];
          dispatch_source_cancel(timeoutTimer);
     });
@@ -343,8 +343,8 @@ typedef enum {
     return timeoutFuture;
 }
 
-- (CUFuture *)withQueue:(dispatch_queue_t)queue {
-    return [[CUFuture alloc] initWithQueue:queue andParent:self];
+- (PMFuture *)withQueue:(dispatch_queue_t)queue {
+    return [[PMFuture alloc] initWithQueue:queue andParent:self];
 }
 
 #pragma mark - internal private methods
@@ -397,7 +397,7 @@ typedef enum {
 }
 
 //internal use only
-- (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(CUFuture *)parent {
+- (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
     if(self = [super init]) {
         _queue = queue;
         _state = Incomplete;

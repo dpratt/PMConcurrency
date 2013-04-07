@@ -8,6 +8,6 @@
 
 #import <SenTestingKit/SenTestingKit.h>
 
-@interface CUFutureTests : SenTestCase
+@interface PMFutureTests : SenTestCase
 
 @end

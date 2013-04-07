@@ -1,5 +1,5 @@
 //
-//  CUFuture.h
+//  PMFuture.h
 //
 //  Created by David Pratt on 3/14/13.
 //  Copyright (c) 2013 David Pratt. All rights reserved.
@@ -7,22 +7,22 @@
 
 #import <Foundation/Foundation.h>
 
-@class CUFuture;
+@class PMFuture;
 
 typedef id (^future_block)(NSError **error);
 
 typedef id (^recover_block)(NSError **error);
-typedef CUFuture *(^flat_recover_block)(NSError **);
+typedef PMFuture *(^flat_recover_block)(NSError **);
 
-extern NSString * const kCUFutureErrorDomain;
+extern NSString * const kPMFutureErrorDomain;
 
 typedef enum {
-    kCUFutureErrorCancelled = 100,
-    kCUFutureErrorTimeout = 101,
-    kCUFutureErrorUnknown = 102
-} CUFutureErrors;
+    kPMFutureErrorCancelled = 100,
+    kPMFutureErrorTimeout = 101,
+    kPMFutureErrorUnknown = 102
+} PMFutureErrors;
 
-@interface CUFuture : NSObject
+@interface PMFuture : NSObject
 
 /*
  Return a new, uncompleted future.
@@ -62,7 +62,7 @@ typedef enum {
 /*
  Await the result of the supplied future. THIS METHOD BLOCKS THE CURRENT THREAD.
  */
-+ (id)awaitResult:(CUFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error;
++ (id)awaitResult:(PMFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error;
 
 @property (nonatomic, readonly, getter = isCompleted) BOOL completed;
 @property (nonatomic, readonly, getter = isFailed) BOOL failed;
@@ -94,13 +94,13 @@ typedef enum {
  Return a future with a transformed result. The eventual future will consist of either the value produced by
  this Future and then transformed by the supplied block, or an error.
  */
-- (CUFuture *)map:(id (^)(id result))mapper;
+- (PMFuture *)map:(id (^)(id result))mapper;
 
 /*
  The flattened version of the above. Transform the eventual result of this future using supplied 
  block that produces another future.
  */
-- (CUFuture *)flatMap:(CUFuture *(^)(id result))mapper;
+- (PMFuture *)flatMap:(PMFuture *(^)(id result))mapper;
 
 /*
  Complete this future with the specified value. Returns NO if this future has already been completed.
@@ -120,7 +120,7 @@ typedef enum {
  
  Returns NO if this future has already been completed or associated with another parent future.
  */
-- (BOOL)completeWith:(CUFuture *)otherFuture;
+- (BOOL)completeWith:(PMFuture *)otherFuture;
 
 /*
  Attempt to recover this future from an error. The passed in block will be executed when this Future is completed
@@ -129,22 +129,22 @@ typedef enum {
  If the error parameter is set to nil, the Future produced by this method will be completed with the value 
  returned from the specified block.
  */
-- (CUFuture *)recover:(recover_block)recoverBlock;
+- (PMFuture *)recover:(recover_block)recoverBlock;
 
 /*
  The flattened version of the above - attempt to recover this future with the the future returned by recoverBlock.
  */
-- (CUFuture *)recoverWith:(flat_recover_block)recoverBlock;
+- (PMFuture *)recoverWith:(flat_recover_block)recoverBlock;
 
 /*
  Set a time bound on this future - if it does not complete or fail inside of the specified interval, the returned
  future will be completed with a timeout error.
  */
-- (CUFuture *)withTimeout:(NSTimeInterval)timeout;
+- (PMFuture *)withTimeout:(NSTimeInterval)timeout;
 
 /*
  Return a Future that will execute it's callbacks on the specified queue.
  */
-- (CUFuture *)withQueue:(dispatch_queue_t)queue;
+- (PMFuture *)withQueue:(dispatch_queue_t)queue;
 
 @end

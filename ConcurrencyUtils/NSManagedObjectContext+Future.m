@@ -10,13 +10,14 @@
 
 @implementation NSManagedObjectContext (Future)
 
-- (CUFuture *)performFuture:(future_block)block {
+- (PMFuture *)performFuture:(future_block)block {
     if(block == nil) {
         //this is bad
         @throw [NSException exceptionWithName:@"NSInvalidArgumentException" reason:@"the block passed to performFuture must not be nil." userInfo:nil];
     }
-    //set the queue on the promise to nil to make sure its callbacks execute in the current thread.
-    CUFuture *promise = [CUFuture futureWithQueue:nil];
+    //set the queue on the promise to nil to make sure its callbacks execute on the thread that the
+    //supplied block executes on (which should be the designated thread for the context)
+    PMFuture *promise = [PMFuture futureWithQueue:nil];
     void (^callback)(void) = ^{
         NSError *error = nil;
         id value = block(&error);

@@ -8,10 +8,10 @@
 
 #import <CoreData/CoreData.h>
 
-#import "CUFuture.h"
+#import "PMFuture.h"
 
 @interface NSManagedObjectContext (Future)
 
-- (CUFuture *)performFuture:(future_block)block;
+- (PMFuture *)performFuture:(future_block)block;
 
 @end

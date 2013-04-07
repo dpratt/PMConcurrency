@@ -12,9 +12,10 @@
 		B1BD388816F5A15B00A3A7C7 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1BD387516F5A15B00A3A7C7 /* Foundation.framework */; };
 		B1BD388B16F5A15B00A3A7C7 /* libConcurrencyUtils.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B1BD387216F5A15B00A3A7C7 /* libConcurrencyUtils.a */; };
 		B1BD389116F5A15B00A3A7C7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B1BD388F16F5A15B00A3A7C7 /* InfoPlist.strings */; };
-		B1BD389416F5A15B00A3A7C7 /* CUFutureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389316F5A15B00A3A7C7 /* CUFutureTests.m */; };
-		B1BD389F16F5A18E00A3A7C7 /* CUFuture.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */; };
+		B1BD389416F5A15B00A3A7C7 /* PMFutureTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389316F5A15B00A3A7C7 /* PMFutureTests.m */; };
+		B1BD389F16F5A18E00A3A7C7 /* PMFuture.m in Sources */ = {isa = PBXBuildFile; fileRef = B1BD389E16F5A18E00A3A7C7 /* PMFuture.m */; };
 		B1DF4A7916F5B52F0031C706 /* NSManagedObjectContext+Future.m in Sources */ = {isa = PBXBuildFile; fileRef = B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */; };
+		B1DF4A7C16F631390031C706 /* PMFutureOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = B1DF4A7B16F631390031C706 /* PMFutureOperation.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,12 +48,14 @@
 		B1BD388416F5A15B00A3A7C7 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
 		B1BD388E16F5A15B00A3A7C7 /* ConcurrencyUtilsTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ConcurrencyUtilsTests-Info.plist"; sourceTree = "<group>"; };
 		B1BD389016F5A15B00A3A7C7 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		B1BD389216F5A15B00A3A7C7 /* CUFutureTests.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CUFutureTests.h; sourceTree = "<group>"; };
-		B1BD389316F5A15B00A3A7C7 /* CUFutureTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CUFutureTests.m; sourceTree = "<group>"; };
-		B1BD389D16F5A18E00A3A7C7 /* CUFuture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CUFuture.h; sourceTree = "<group>"; };
-		B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CUFuture.m; sourceTree = "<group>"; };
+		B1BD389216F5A15B00A3A7C7 /* PMFutureTests.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PMFutureTests.h; sourceTree = "<group>"; };
+		B1BD389316F5A15B00A3A7C7 /* PMFutureTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PMFutureTests.m; sourceTree = "<group>"; };
+		B1BD389D16F5A18E00A3A7C7 /* PMFuture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PMFuture.h; sourceTree = "<group>"; };
+		B1BD389E16F5A18E00A3A7C7 /* PMFuture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PMFuture.m; sourceTree = "<group>"; };
 		B1DF4A7716F5B52F0031C706 /* NSManagedObjectContext+Future.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSManagedObjectContext+Future.h"; sourceTree = "<group>"; };
 		B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSManagedObjectContext+Future.m"; sourceTree = "<group>"; };
+		B1DF4A7A16F631390031C706 /* PMFutureOperation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PMFutureOperation.h; sourceTree = "<group>"; };
+		B1DF4A7B16F631390031C706 /* PMFutureOperation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PMFutureOperation.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,8 +111,10 @@
 		B1BD387716F5A15B00A3A7C7 /* ConcurrencyUtils */ = {
 			isa = PBXGroup;
 			children = (
-				B1BD389D16F5A18E00A3A7C7 /* CUFuture.h */,
-				B1BD389E16F5A18E00A3A7C7 /* CUFuture.m */,
+				B1DF4A7A16F631390031C706 /* PMFutureOperation.h */,
+				B1DF4A7B16F631390031C706 /* PMFutureOperation.m */,
+				B1BD389D16F5A18E00A3A7C7 /* PMFuture.h */,
+				B1BD389E16F5A18E00A3A7C7 /* PMFuture.m */,
 				B1DF4A7716F5B52F0031C706 /* NSManagedObjectContext+Future.h */,
 				B1DF4A7816F5B52F0031C706 /* NSManagedObjectContext+Future.m */,
 				B1BD387816F5A15B00A3A7C7 /* Supporting Files */,
@@ -128,8 +133,8 @@
 		B1BD388C16F5A15B00A3A7C7 /* ConcurrencyUtilsTests */ = {
 			isa = PBXGroup;
 			children = (
-				B1BD389216F5A15B00A3A7C7 /* CUFutureTests.h */,
-				B1BD389316F5A15B00A3A7C7 /* CUFutureTests.m */,
+				B1BD389216F5A15B00A3A7C7 /* PMFutureTests.h */,
+				B1BD389316F5A15B00A3A7C7 /* PMFutureTests.m */,
 				B1BD388D16F5A15B00A3A7C7 /* Supporting Files */,
 			);
 			path = ConcurrencyUtilsTests;
@@ -242,8 +247,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1BD389F16F5A18E00A3A7C7 /* CUFuture.m in Sources */,
+				B1BD389F16F5A18E00A3A7C7 /* PMFuture.m in Sources */,
 				B1DF4A7916F5B52F0031C706 /* NSManagedObjectContext+Future.m in Sources */,
+				B1DF4A7C16F631390031C706 /* PMFutureOperation.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,7 +257,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1BD389416F5A15B00A3A7C7 /* CUFutureTests.m in Sources */,
+				B1BD389416F5A15B00A3A7C7 /* PMFutureTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
