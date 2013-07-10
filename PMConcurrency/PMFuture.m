@@ -18,8 +18,6 @@ typedef enum {
 
 @interface PMFuture () {
     NSMutableArray *_callbacks;
-    id _value;
-    NSError *_error;
     
     NSRecursiveLock *_stateLock;
     FutureState _state;
@@ -27,7 +25,8 @@ typedef enum {
     callback_runner _callbackRunner;
 }
 
-@property (nonatomic, strong) PMFuture *parentFuture;
+@property (nonatomic, strong) id value;
+@property (nonatomic, strong) NSError *error;
 
 @end
 
@@ -96,18 +95,29 @@ typedef enum {
  */
 + (id)awaitResult:(PMFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error {
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    __block id futureResult = nil;
-    
-    [[future withTimeout:timeout] onComplete:^(id result, NSError *futureError) {
-        futureResult = result;
-        if(error != nil && futureError != nil) {
-            *error = futureError;
+    __block id futureResult;
+    __weak PMFuture *weakFuture = future;
+    //this violates the contract slightly - we actually want this callback to execute even if it's cancelled
+    [future invokeOrAddCallback: ^{
+        if(weakFuture.error != nil) {
+            *error = weakFuture.error;
+        } else {
+            futureResult = weakFuture.value;
         }
         dispatch_semaphore_signal(sem);
     }];
     
-    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
-    return futureResult;
+    long result = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC));
+    if(result != 0) {
+        //timed out!
+        *error = [NSError errorWithDomain:kPMFutureErrorDomain
+                                     code:kPMFutureErrorTimeout
+                                 userInfo:@{NSLocalizedDescriptionKey : @"Timed out waiting for result of future."}];
+        return nil;
+    } else {
+        return futureResult;
+    }
+    
 }
 
 - (instancetype)init {
@@ -148,8 +158,7 @@ typedef enum {
 - (BOOL)completeWith:(PMFuture *)otherFuture {
     [_stateLock lock];
     BOOL didComplete = NO;
-    if(!self.isCompleted && _parentFuture == nil) {
-        _parentFuture = otherFuture;
+    if(!self.isCompleted) {
         didComplete = YES;
         [otherFuture onComplete:^(id result, NSError *error) {
             if(error != nil) {
@@ -157,6 +166,10 @@ typedef enum {
             } else {
                 [self tryComplete:result];
             }
+        }];
+        //ensure that this future is cancelled if the parent future is cancelled.
+        [otherFuture onCancel:^{
+            [self cancel];
         }];
     }
     [_stateLock unlock];
@@ -168,18 +181,13 @@ typedef enum {
     if(!self.isCompleted) {
         //not completed yet, we can cancel
         
-        //cancel our parent first
-        [_parentFuture cancel];
-        
         _error = [NSError errorWithDomain:kPMFutureErrorDomain
                                      code:kPMFutureErrorCancelled
                                  userInfo:@{NSLocalizedDescriptionKey : @"The future has been cancelled."}];
         //now transition our state
         [self complete:Cancelled];
         
-        
         _callbacks = nil;
-        _parentFuture = nil;
     }
     [_stateLock unlock];
 }
@@ -208,11 +216,6 @@ typedef enum {
             successBlock(result);
         }
     }];
-//    [self invokeOrAddCallback:^{
-//        if(weakSelf.isSuccess) {
-//            successBlock(_value);
-//        }
-//    }];
 }
 
 - (void)onFailure:(void (^)(NSError *error))failureBlock {
@@ -223,11 +226,6 @@ typedef enum {
             failureBlock(error);
         }
     }];
-//    [self invokeOrAddCallback:^{
-//        if(weakSelf.isFailed) {
-//            failureBlock(_error);
-//        }
-//    }];    
 }
 
 - (void)onComplete:(void (^)(id result, NSError *error))completeBlock {
@@ -237,7 +235,7 @@ typedef enum {
     __weak PMFuture *weakSelf = self;
     [self invokeOrAddCallback:^{
         //don't run completion blocks for cancelled futures
-        if(!weakSelf.isCancelled) {
+        if(!weakSelf.isCancelled && weakSelf.isCompleted) {
             completeBlock(_value, _error);
         }
     }];
@@ -310,11 +308,15 @@ typedef enum {
     if(recoverBlock == nil) return self;
     
     PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
-    [self onFailure:^(NSError *error) {
-        NSError *internalError = error;
-        id result = recoverBlock(&internalError);
-        if(internalError != nil) {
-            [other tryFail:internalError];
+    [self onComplete:^(id result, NSError *error) {
+        if(error != nil) {
+            NSError *internalError = error;
+            id internalResult = recoverBlock(&internalError);
+            if(internalError != nil) {
+                [other tryFail:internalError];
+            } else {
+                [other tryComplete:internalResult];
+            }
         } else {
             [other tryComplete:result];
         }
@@ -326,13 +328,17 @@ typedef enum {
     if(recoverBlock == nil) return self;
     
     PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
-    [self onFailure:^(NSError *error) {
-        NSError *internalError = error;
-        PMFuture *result = recoverBlock(&internalError);
-        if(internalError != nil) {
-            [other tryFail:internalError];
+    [self onComplete:^(id result, NSError *error) {
+        if(error != nil) {
+            NSError *internalError = error;
+            PMFuture *internalResult = recoverBlock(&internalError);
+            if(internalError != nil) {
+                [other tryFail:internalError];
+            } else {
+                [other completeWith:internalResult];
+            }
         } else {
-            [other completeWith:result];
+            [other tryComplete:result];
         }
     }];
     return other;
@@ -368,7 +374,15 @@ typedef enum {
 }
 
 - (PMFuture *)withQueue:(dispatch_queue_t)queue {
-    return [[PMFuture alloc] initWithQueue:queue andParent:self];
+    PMFuture *promise = [[PMFuture alloc] initWithQueue:queue andParent:self];
+    [promise completeWith:self];
+    return promise;
+}
+
+- (PMFuture *)withCallbackRunner:(callback_runner)callbackRunner {
+    PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:callbackRunner andParent:self];
+    [promise completeWith:self];
+    return promise;
 }
 
 #pragma mark - internal private methods
@@ -423,11 +437,13 @@ typedef enum {
         _state = Incomplete;
         _callbacks = [NSMutableArray array];
         _stateLock = [[NSRecursiveLock alloc] init];
-        _parentFuture = parent;
+        //ensure that we cancel when our dependent future does as well.
+        [parent onCancel:^{
+            [self cancel];
+        }];
         _callbackRunner = callbackRunner;
     }
     return self;
-
 }
 
 - (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
