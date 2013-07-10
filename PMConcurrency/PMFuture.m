@@ -7,8 +7,6 @@
 
 #import "PMFuture.h"
 
-typedef void (^callback_block)(void);
-
 NSString * const kPMFutureErrorDomain = @"PMFutureErrorDomain";
 
 typedef enum {
@@ -19,13 +17,14 @@ typedef enum {
 } FutureState;
 
 @interface PMFuture () {
-    dispatch_queue_t _queue;
     NSMutableArray *_callbacks;
     id _value;
     NSError *_error;
     
     NSRecursiveLock *_stateLock;
     FutureState _state;
+    
+    callback_runner _callbackRunner;
 }
 
 @property (nonatomic, strong) PMFuture *parentFuture;
@@ -81,11 +80,12 @@ typedef enum {
 + (instancetype)sequenceFutures:(NSArray *)futures {
     PMFuture *promise = [PMFuture futureWithResult:[NSMutableArray arrayWithCapacity:futures.count]];
     for(PMFuture *future in futures) {
-        promise = [promise flatMap:^PMFuture *(NSMutableArray *promiseResult) {
-            return [future map:^id(id result) {
+        promise = [promise flatMap:^PMFuture *(NSMutableArray *promiseResult, NSError **flatError) {
+            PMFuture *futureOfResultArray = [future map:^id(id result, NSError **error) {
                 [promiseResult addObject:result];
                 return promiseResult;
             }];
+            return futureOfResultArray;
         }];
     }
     return promise;
@@ -116,6 +116,10 @@ typedef enum {
 
 - (instancetype)initWithQueue:(dispatch_queue_t)queue {
     return [self initWithQueue:queue andParent:nil];
+}
+
+- (instancetype)initWithCallbackRunner:(callback_runner)callbackRunner {
+    return [self initWithCallbackRunner:callbackRunner andParent:nil];
 }
 
 - (BOOL)tryComplete:(id)value {
@@ -199,21 +203,31 @@ typedef enum {
 - (void)onSuccess:(void (^)(id result))successBlock {
     if(successBlock == nil) return;
     __weak PMFuture *weakSelf = self;
-    [self invokeOrAddCallback:^{
+    [self onComplete:^(id result, NSError *error) {
         if(weakSelf.isSuccess) {
-            successBlock(_value);
+            successBlock(result);
         }
     }];
+//    [self invokeOrAddCallback:^{
+//        if(weakSelf.isSuccess) {
+//            successBlock(_value);
+//        }
+//    }];
 }
 
 - (void)onFailure:(void (^)(NSError *error))failureBlock {
     if(failureBlock == nil) return;
     __weak PMFuture *weakSelf = self;
-    [self invokeOrAddCallback:^{
-        if(weakSelf.isFailed) {
-            failureBlock(_error);
+    [self onComplete:^(id result, NSError *error) {
+        if(weakSelf.isSuccess) {
+            failureBlock(error);
         }
-    }];    
+    }];
+//    [self invokeOrAddCallback:^{
+//        if(weakSelf.isFailed) {
+//            failureBlock(_error);
+//        }
+//    }];    
 }
 
 - (void)onComplete:(void (^)(id result, NSError *error))completeBlock {
@@ -239,40 +253,53 @@ typedef enum {
     }];
 }
 
-- (PMFuture *)map:(id (^)(id result))mapper {
+- (PMFuture *)map:(id (^)(id value, NSError** error))mapper {
     if(mapper == nil) return self;
     
-    PMFuture *promise = [[PMFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
     
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
             [promise tryFail:error];
         } else {
-            id mapped = mapper(result);
-            [promise tryComplete:mapped];
+            NSError *nestedError = nil;
+            id mapped = mapper(result, &nestedError);
+            if(nestedError != nil) {
+                //an error in the mapper function itself
+                [promise tryFail:nestedError];
+            } else {
+                [promise tryComplete:mapped];
+            }        
         }
     }];
     
     return promise;
 }
 
-- (PMFuture *)flatMap:(PMFuture *(^)(id result))mapper {
+- (PMFuture *)flatMap:(PMFuture *(^)(id value, NSError** error))mapper {
     if(mapper == nil) return self;
     
-    PMFuture *promise = [[PMFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
     
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
             [promise tryFail:error];
         } else {
-            PMFuture *nested = mapper(result);
-            [nested onComplete:^(id result, NSError *error) {
-                if(error != nil) {
-                    [promise tryFail:error];
-                } else {
-                    [promise tryComplete:result];
-                }
-            }];
+            NSError *nestedError = nil;
+            PMFuture *nested = mapper(result, &nestedError);
+            if(nestedError != nil) {
+                //there was an error in the mapper itself
+                //the promise returned by this method should be failed
+                [promise tryFail:nestedError];
+            } else {
+                [nested onComplete:^(id result, NSError *error) {
+                    if(error != nil) {
+                        [promise tryFail:error];
+                    } else {
+                        [promise tryComplete:result];
+                    }
+                }];
+            }
         }
     }];
     
@@ -282,7 +309,7 @@ typedef enum {
 - (PMFuture *)recover:(recover_block)recoverBlock {
     if(recoverBlock == nil) return self;
     
-    PMFuture *other = [[PMFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
     [self onFailure:^(NSError *error) {
         NSError *internalError = error;
         id result = recoverBlock(&internalError);
@@ -298,7 +325,7 @@ typedef enum {
 - (PMFuture *)recoverWith:(flat_recover_block)recoverBlock {
     if(recoverBlock == nil) return self;
     
-    PMFuture *other = [[PMFuture alloc] initWithQueue:_queue andParent:self];
+    PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
     [self onFailure:^(NSError *error) {
         NSError *internalError = error;
         PMFuture *result = recoverBlock(&internalError);
@@ -312,22 +339,14 @@ typedef enum {
 }
 
 - (PMFuture *)withTimeout:(NSTimeInterval)timeout {
-    PMFuture *timeoutFuture = [[PMFuture alloc] initWithQueue:_queue];
+    PMFuture *timeoutFuture = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:nil];
     
     //complete the timeout future when we complete
     [timeoutFuture completeWith:self];
-    
-    dispatch_queue_t timeoutQueue = _queue;
-    if(timeoutQueue == nil) {
-        //use the default background queue
-        //note - there's a danger here, in that the thread/queue that the callback
-        //handlers are invoked on is defined as 'the current thread' when the queue is nil
-        //since a timeout completion will be handled by the system rather than explicitly
-        //in user code, this may cause the user's code to act strange. I don't think this is a big deal
-        //since the case of having an undefined queue is a rare one, and users do understand the danger there
-        timeoutQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-    }
-    
+
+    //fire the acutal timeout on a default background queue
+    //this won't affect the callbacks of the resulting future - those get handled by the callbackrunner
+    dispatch_queue_t timeoutQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     dispatch_source_t timeoutTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, timeoutQueue);
     dispatch_source_set_timer(timeoutTimer, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC), DISPATCH_TIME_FOREVER, 0);
     dispatch_source_set_event_handler(timeoutTimer, ^{
@@ -339,6 +358,11 @@ typedef enum {
     
     //start the timer
     dispatch_resume(timeoutTimer);
+    
+    [timeoutFuture onComplete:^(id result, NSError *error) {
+        //cancel the timer when we complete
+        dispatch_source_cancel(timeoutTimer);
+    }];
     
     return timeoutFuture;
 }
@@ -389,23 +413,27 @@ typedef enum {
 }
 
 - (void)runBlock:(callback_block)block {
-    if(_queue) {
-        dispatch_async(_queue, block);
-    } else {
-        block();
-    }
+    _callbackRunner(block);
 }
 
 //internal use only
-- (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
+//this is the 'actual' designated initializer - but INTERNAL USE ONLY
+- (instancetype)initWithCallbackRunner:(callback_runner)callbackRunner andParent:(PMFuture *)parent {
     if(self = [super init]) {
-        _queue = queue;
         _state = Incomplete;
         _callbacks = [NSMutableArray array];
         _stateLock = [[NSRecursiveLock alloc] init];
         _parentFuture = parent;
+        _callbackRunner = callbackRunner;
     }
     return self;
+
+}
+
+- (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
+    return [self initWithCallbackRunner:^(callback_block callback) {
+        dispatch_async(queue, callback);
+    } andParent:parent];
 }
 
 

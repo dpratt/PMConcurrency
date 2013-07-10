@@ -9,10 +9,14 @@
 
 @class PMFuture;
 
+//internal details
+typedef void (^callback_block)(void);
+typedef void (^callback_runner)(callback_block callback);
+
 typedef id (^future_block)(NSError **error);
 
 typedef id (^recover_block)(NSError **error);
-typedef PMFuture *(^flat_recover_block)(NSError **);
+typedef PMFuture *(^flat_recover_block)(NSError **error);
 
 extern NSString * const kPMFutureErrorDomain;
 
@@ -69,7 +73,15 @@ typedef enum {
 @property (nonatomic, readonly, getter = isSuccess) BOOL success;
 @property (nonatomic, readonly, getter = isCancelled) BOOL cancelled;
 
+/*
+ The designated initializer for PMFuture.
+ */
 - (instancetype)initWithQueue:(dispatch_queue_t)queue;
+
+/*
+ Use when you need more advanced control over the context in which callbacks execute.
+ */
+- (instancetype)initWithCallbackRunner:(callback_runner)callbackRunner;
 
 /*
  Attempt to cancel this Future if it has not yet completed. If the cancellation succeeds, no further 
@@ -94,13 +106,13 @@ typedef enum {
  Return a future with a transformed result. The eventual future will consist of either the value produced by
  this Future and then transformed by the supplied block, or an error.
  */
-- (PMFuture *)map:(id (^)(id result))mapper;
+- (PMFuture *)map:(id (^)(id value, NSError** error))mapper;
 
 /*
  The flattened version of the above. Transform the eventual result of this future using supplied 
  block that produces another future.
  */
-- (PMFuture *)flatMap:(PMFuture *(^)(id result))mapper;
+- (PMFuture *)flatMap:(PMFuture *(^)(id value, NSError** error))mapper;
 
 /*
  Complete this future with the specified value. Returns NO if this future has already been completed.
@@ -143,7 +155,9 @@ typedef enum {
 - (PMFuture *)withTimeout:(NSTimeInterval)timeout;
 
 /*
- Return a Future that will execute it's callbacks on the specified queue.
+ Return a copy of this Future that will execute it's callbacks on the specified queue. The new Future will complete
+ with the same result as the original (and at the same time) but any callbacks added to this future will execute
+ in the new queue.
  */
 - (PMFuture *)withQueue:(dispatch_queue_t)queue;
 

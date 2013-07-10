@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B1D694F1178DCDED00F18EE4 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1D694F0178DCDED00F18EE4 /* CoreData.framework */; };
+		B1D694F5178DCE1300F18EE4 /* TestModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F3178DCE1300F18EE4 /* TestModel.xcdatamodeld */; };
+		B1D694F8178DCE4600F18EE4 /* PMTestEntity.m in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F7178DCE4600F18EE4 /* PMTestEntity.m */; };
+		B1D694FB178DCE6900F18EE4 /* PMCoreDataTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B1D694FA178DCE6900F18EE4 /* PMCoreDataTests.m */; };
 		B1E757F71711377200A77DA6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1E757F61711377200A77DA6 /* Foundation.framework */; };
 		B1E758061711377200A77DA6 /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1E758051711377200A77DA6 /* SenTestingKit.framework */; };
 		B1E758091711377200A77DA6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1E757F61711377200A77DA6 /* Foundation.framework */; };
@@ -41,6 +45,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B1D694F0178DCDED00F18EE4 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		B1D694F4178DCE1300F18EE4 /* TestModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TestModel.xcdatamodel; sourceTree = "<group>"; };
+		B1D694F6178DCE4600F18EE4 /* PMTestEntity.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PMTestEntity.h; sourceTree = "<group>"; };
+		B1D694F7178DCE4600F18EE4 /* PMTestEntity.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PMTestEntity.m; sourceTree = "<group>"; };
+		B1D694F9178DCE6900F18EE4 /* PMCoreDataTests.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PMCoreDataTests.h; sourceTree = "<group>"; };
+		B1D694FA178DCE6900F18EE4 /* PMCoreDataTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PMCoreDataTests.m; sourceTree = "<group>"; };
 		B1E757F31711377200A77DA6 /* libPMConcurrency.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libPMConcurrency.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		B1E757F61711377200A77DA6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		B1E757FA1711377200A77DA6 /* PMConcurrency-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PMConcurrency-Prefix.pch"; sourceTree = "<group>"; };
@@ -71,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1D694F1178DCDED00F18EE4 /* CoreData.framework in Frameworks */,
 				B1E758061711377200A77DA6 /* SenTestingKit.framework in Frameworks */,
 				B1E758091711377200A77DA6 /* Foundation.framework in Frameworks */,
 				B1E7580C1711377200A77DA6 /* libPMConcurrency.a in Frameworks */,
@@ -80,6 +91,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B1D694F2178DCDF800F18EE4 /* Core Data Model */ = {
+			isa = PBXGroup;
+			children = (
+				B1D694F3178DCE1300F18EE4 /* TestModel.xcdatamodeld */,
+				B1D694F6178DCE4600F18EE4 /* PMTestEntity.h */,
+				B1D694F7178DCE4600F18EE4 /* PMTestEntity.m */,
+			);
+			name = "Core Data Model";
+			sourceTree = "<group>";
+		};
 		B1E757EA1711377200A77DA6 = {
 			isa = PBXGroup;
 			children = (
@@ -102,6 +123,7 @@
 		B1E757F51711377200A77DA6 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				B1D694F0178DCDED00F18EE4 /* CoreData.framework */,
 				B1E757F61711377200A77DA6 /* Foundation.framework */,
 				B1E758051711377200A77DA6 /* SenTestingKit.framework */,
 			);
@@ -133,9 +155,12 @@
 		B1E7580D1711377200A77DA6 /* PMConcurrencyTests */ = {
 			isa = PBXGroup;
 			children = (
+				B1D694F2178DCDF800F18EE4 /* Core Data Model */,
+				B1E7580E1711377200A77DA6 /* Supporting Files */,
 				B1E7581E17113AA100A77DA6 /* PMFutureTests.h */,
 				B1E7581F17113AA100A77DA6 /* PMFutureTests.m */,
-				B1E7580E1711377200A77DA6 /* Supporting Files */,
+				B1D694F9178DCE6900F18EE4 /* PMCoreDataTests.h */,
+				B1D694FA178DCE6900F18EE4 /* PMCoreDataTests.m */,
 			);
 			path = PMConcurrencyTests;
 			sourceTree = "<group>";
@@ -258,6 +283,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1E7582017113AA100A77DA6 /* PMFutureTests.m in Sources */,
+				B1D694F5178DCE1300F18EE4 /* TestModel.xcdatamodeld in Sources */,
+				B1D694F8178DCE4600F18EE4 /* PMTestEntity.m in Sources */,
+				B1D694FB178DCE6900F18EE4 /* PMCoreDataTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -370,6 +398,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "PMConcurrency/PMConcurrency-Prefix.pch";
 				INFOPLIST_FILE = "PMConcurrencyTests/PMConcurrencyTests-Info.plist";
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = octest;
 			};
@@ -385,6 +414,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "PMConcurrency/PMConcurrency-Prefix.pch";
 				INFOPLIST_FILE = "PMConcurrencyTests/PMConcurrencyTests-Info.plist";
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = octest;
 			};
@@ -421,6 +451,19 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		B1D694F3178DCE1300F18EE4 /* TestModel.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				B1D694F4178DCE1300F18EE4 /* TestModel.xcdatamodel */,
+			);
+			currentVersion = B1D694F4178DCE1300F18EE4 /* TestModel.xcdatamodel */;
+			path = TestModel.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = B1E757EB1711377200A77DA6 /* Project object */;
 }

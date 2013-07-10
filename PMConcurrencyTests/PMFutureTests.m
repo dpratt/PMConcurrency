@@ -1,6 +1,6 @@
 //
-//  ConcurrencyUtilsTests.m
-//  ConcurrencyUtilsTests
+//  PMFutureTests.m
+//  PMConcurrencyTests
 //
 //  Created by David Pratt on 3/17/13.
 //  Copyright (c) 2013 David Pratt. All rights reserved.
@@ -53,7 +53,7 @@
 }
 
 - (void)testMap {
-    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result) {
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result, NSError **error) {
         return [NSNumber numberWithInt:[result intValue] + 1];
     }];
 
@@ -62,6 +62,60 @@
     STAssertTrue(future.isSuccess, @"Future is not successful.");
     STAssertEqualObjects(value, @2, @"Expected result of future to be 2.");
 }
+
+- (void)testMapFailure {
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result, NSError **error) {
+        *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
+        //return a value and ensure that it gets discarded
+        return @"Hi there.";
+    }];
+    
+    NSError *futureError = nil;
+    id value = [PMFuture awaitResult:future withTimeout:10.0 andError:&futureError];
+    
+    STAssertTrue(future.isFailed, @"Future should have failed.");
+    STAssertNil(value, @"Expected result of future to be nil.");
+    STAssertNotNil(futureError, @"Expected error to be non-nil.");
+    STAssertEquals(futureError.code, 100, @"Expected error code to be 100.");
+    STAssertEqualObjects(futureError.domain, @"TestDomain", @"Expected error code to be 100.");
+}
+
+- (void)testFlatMap {
+    
+    PMFuture *future = [[PMFuture futureWithResult:@1] flatMap:^PMFuture *(id value, NSError *__autoreleasing *error) {
+        return [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+            return [NSNumber numberWithInt:[value intValue] + 1];
+        }];
+    }];
+    id value = [PMFuture awaitResult:future withTimeout:10.0 andError:nil];
+    
+    STAssertTrue(future.isSuccess, @"Future is not successful.");
+    STAssertEqualObjects(value, @2, @"Expected result of future to be 2.");
+
+}
+
+- (void)testFlatMapFailure {
+    
+    PMFuture *future = [[PMFuture futureWithResult:@1] flatMap:^PMFuture *(id value, NSError *__autoreleasing *error) {
+        return [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+            *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
+            //return a value and ensure that it gets discarded
+            return @"Hi there.";
+        }];
+    }];
+    
+    NSError *futureError = nil;
+    id value = [PMFuture awaitResult:future withTimeout:10.0 andError:&futureError];
+    
+    STAssertTrue(future.isFailed, @"Future should have failed.");
+    STAssertNil(value, @"Expected result of future to be nil.");
+    STAssertNotNil(futureError, @"Expected error to be non-nil.");
+    STAssertEquals(futureError.code, 100, @"Expected error code to be 100.");
+    STAssertEqualObjects(futureError.domain, @"TestDomain", @"Expected error code to be 100.");
+    
+}
+
+
 
 - (void)testSequence {
     
@@ -92,6 +146,36 @@
     STAssertEqualObjects(@6, [value valueForKeyPath:@"@sum.self"], @"Expected result to be 6.");
 
 }
+
+- (void)testSequenceFailed {
+    
+    NSArray *futures = @[
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                             return @1;
+                         }],
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                             //fail this single future
+                             *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
+                             return @"Foo";
+                         }],
+                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                             return @3;
+                         }]
+                         ];
+    
+    PMFuture *result = [PMFuture sequenceFutures:futures];
+    
+    NSError *futureError = nil;
+    id value = [PMFuture awaitResult:result withTimeout:10.0 andError:&futureError];
+    
+    STAssertTrue(result.isFailed, @"Future is not failed.");
+    STAssertNotNil(futureError, @"Error is not nil - %@", futureError);
+    STAssertNil(value, @"Expected result to be nil.");
+    STAssertEquals(futureError.code, 100, @"Expected error code to be 100.");
+    STAssertEqualObjects(futureError.domain, @"TestDomain", @"Expected error code to be 100.");
+
+}
+
 
 - (void)testBlockingTimeout {
     

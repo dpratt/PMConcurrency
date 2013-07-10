@@ -72,10 +72,14 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 
 @implementation PMFutureOperation
 
++ (instancetype)futureOperationWithBlock:(future_block)block {
+    return [[PMFutureOperation alloc] initWithBlock:block];
+}
+
 - (instancetype)initWithBlock:(future_block)block {
     if(self = [super init]) {
         self.lock = [[NSRecursiveLock alloc] init];
-        self.lock.name = @"org.dpratt.futureoperation.lock";
+        self.lock.name = @"com.primemoverlabs.futureoperation.lock";
         self.future = [PMFuture future];
         self.state = PMOperationReadyState;
         self.futureBody = block;
