@@ -11,7 +11,7 @@
 
 typedef enum {
     PMOperationReadyState       = 1,
-    PMOperationExePMtingState   = 2,
+    PMOperationExecutingState   = 2,
     PMOperationFinishedState    = 3,
 } _PMOperationState;
 
@@ -21,8 +21,8 @@ static inline NSString * PMKeyPathFromOperationState(PMOperationState state) {
     switch (state) {
         case PMOperationReadyState:
             return @"isReady";
-        case PMOperationExePMtingState:
-            return @"isExePMting";
+        case PMOperationExecutingState:
+            return @"isExecuting";
         case PMOperationFinishedState:
             return @"isFinished";
         default:
@@ -34,14 +34,14 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
     switch (fromState) {
         case PMOperationReadyState:
             switch (toState) {
-                case PMOperationExePMtingState:
+                case PMOperationExecutingState:
                     return YES;
                 case PMOperationFinishedState:
                     return isCancelled;
                 default:
                     return NO;
             }
-        case PMOperationExePMtingState:
+        case PMOperationExecutingState:
             switch (toState) {
                 case PMOperationFinishedState:
                     return YES;
@@ -111,7 +111,7 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 }
 
 - (BOOL)isExecuting {
-    return self.state == PMOperationExePMtingState;
+    return self.state == PMOperationExecutingState;
 }
 
 - (BOOL)isFinished {
@@ -125,7 +125,7 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 - (void)start {
     [self.lock lock];
     if ([self isReady]) {
-        self.state = PMOperationExePMtingState;
+        self.state = PMOperationExecutingState;
         if([self isCancelled]) {
             //if we're cancelled, just mark as finished.
             [self finish];
