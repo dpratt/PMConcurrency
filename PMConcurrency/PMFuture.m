@@ -25,9 +25,6 @@ typedef enum {
     callback_runner _callbackRunner;
 }
 
-@property (nonatomic, strong) id value;
-@property (nonatomic, strong) NSError *error;
-
 @end
 
 @implementation PMFuture
@@ -383,6 +380,10 @@ typedef enum {
     PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:callbackRunner andParent:self];
     [promise completeWith:self];
     return promise;
+}
+
+- (PMFuture *)onMainThread {
+    return [self withQueue:dispatch_get_main_queue()];
 }
 
 #pragma mark - internal private methods

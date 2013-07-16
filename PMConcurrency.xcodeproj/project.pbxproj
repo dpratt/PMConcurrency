@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B1A9C7FD17908E32009070BE /* NSManagedObjectContext+Future.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582117113AC100A77DA6 /* NSManagedObjectContext+Future.h */; };
+		B1A9C7FE17908E32009070BE /* PMFuture.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582317113AC100A77DA6 /* PMFuture.h */; };
+		B1A9C7FF17908E32009070BE /* PMFutureOperation.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582517113AC100A77DA6 /* PMFutureOperation.h */; };
 		B1D694F1178DCDED00F18EE4 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1D694F0178DCDED00F18EE4 /* CoreData.framework */; };
 		B1D694F5178DCE1300F18EE4 /* TestModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F3178DCE1300F18EE4 /* TestModel.xcdatamodeld */; };
 		B1D694F8178DCE4600F18EE4 /* PMTestEntity.m in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F7178DCE4600F18EE4 /* PMTestEntity.m */; };
@@ -39,6 +42,9 @@
 			dstPath = "include/${PRODUCT_NAME}";
 			dstSubfolderSpec = 16;
 			files = (
+				B1A9C7FD17908E32009070BE /* NSManagedObjectContext+Future.h in CopyFiles */,
+				B1A9C7FE17908E32009070BE /* PMFuture.h in CopyFiles */,
+				B1A9C7FF17908E32009070BE /* PMFutureOperation.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

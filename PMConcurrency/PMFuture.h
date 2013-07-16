@@ -85,6 +85,18 @@ typedef enum {
 @property (nonatomic, readonly, getter = isCancelled) BOOL cancelled;
 
 /*
+ If this Future has completed successfully, this is the value of the future. If this is still uncompleted or 
+ completed with an error, the value of this property is undefined.
+ */
+@property (nonatomic, strong) id value;
+
+/*
+ If this Future completed with an error, the value of the error. If this is still uncompleted or
+ completed successfully, the value of this property is undefined.
+ */
+@property (nonatomic, strong) NSError *error;
+
+/*
  The designated initializer for PMFuture.
  */
 - (instancetype)initWithQueue:(dispatch_queue_t)queue;
@@ -187,6 +199,11 @@ typedef enum {
  in the new queue.
  */
 - (PMFuture *)withQueue:(dispatch_queue_t)queue;
+
+/*
+ Return a copy of this future that will execute it's callbacks on the main thread.
+ */
+- (PMFuture *)onMainThread;
 
 /*
  Return a copy of this Future that will execute it's callbacks using the specified runner. The new Future will complete
