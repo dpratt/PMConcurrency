@@ -7,12 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B145DA87179EE23300CF270E /* NSManagedObjectContext+Future.h in Headers */ = {isa = PBXBuildFile; fileRef = B1E7582117113AC100A77DA6 /* NSManagedObjectContext+Future.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		B145DA88179EE23300CF270E /* PMFuture.h in Headers */ = {isa = PBXBuildFile; fileRef = B1E7582317113AC100A77DA6 /* PMFuture.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		B145DA89179EE23300CF270E /* PMFutureOperation.h in Headers */ = {isa = PBXBuildFile; fileRef = B1E7582517113AC100A77DA6 /* PMFutureOperation.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		B1A9C7FD17908E32009070BE /* NSManagedObjectContext+Future.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582117113AC100A77DA6 /* NSManagedObjectContext+Future.h */; };
-		B1A9C7FE17908E32009070BE /* PMFuture.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582317113AC100A77DA6 /* PMFuture.h */; };
-		B1A9C7FF17908E32009070BE /* PMFutureOperation.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582517113AC100A77DA6 /* PMFutureOperation.h */; };
+		B12299F017C2930400C6B6F0 /* NSManagedObjectContext+Future.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582117113AC100A77DA6 /* NSManagedObjectContext+Future.h */; };
+		B12299F117C2930400C6B6F0 /* PMFuture.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582317113AC100A77DA6 /* PMFuture.h */; };
+		B12299F217C2930400C6B6F0 /* PMFutureOperation.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = B1E7582517113AC100A77DA6 /* PMFutureOperation.h */; };
 		B1D694F1178DCDED00F18EE4 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B1D694F0178DCDED00F18EE4 /* CoreData.framework */; };
 		B1D694F5178DCE1300F18EE4 /* TestModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F3178DCE1300F18EE4 /* TestModel.xcdatamodeld */; };
 		B1D694F8178DCE4600F18EE4 /* PMTestEntity.m in Sources */ = {isa = PBXBuildFile; fileRef = B1D694F7178DCE4600F18EE4 /* PMTestEntity.m */; };
@@ -45,9 +42,9 @@
 			dstPath = "include/${PRODUCT_NAME}";
 			dstSubfolderSpec = 16;
 			files = (
-				B1A9C7FD17908E32009070BE /* NSManagedObjectContext+Future.h in CopyFiles */,
-				B1A9C7FE17908E32009070BE /* PMFuture.h in CopyFiles */,
-				B1A9C7FF17908E32009070BE /* PMFutureOperation.h in CopyFiles */,
+				B12299F017C2930400C6B6F0 /* NSManagedObjectContext+Future.h in CopyFiles */,
+				B12299F117C2930400C6B6F0 /* PMFuture.h in CopyFiles */,
+				B12299F217C2930400C6B6F0 /* PMFutureOperation.h in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -190,9 +187,6 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B145DA87179EE23300CF270E /* NSManagedObjectContext+Future.h in Headers */,
-				B145DA88179EE23300CF270E /* PMFuture.h in Headers */,
-				B145DA89179EE23300CF270E /* PMFutureOperation.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,7 +353,6 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 6.1;
 				ONLY_ACTIVE_ARCH = YES;
-				PUBLIC_HEADERS_FOLDER_PATH = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 			};
 			name = Debug;
@@ -381,7 +374,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 6.1;
-				PUBLIC_HEADERS_FOLDER_PATH = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 			};
 			name = Release;
@@ -389,7 +381,6 @@
 		B1E758191711377200A77DA6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				DSTROOT = /tmp/PMConcurrency.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "PMConcurrency/PMConcurrency-Prefix.pch";
 				OTHER_LDFLAGS = "-ObjC";
@@ -401,7 +392,6 @@
 		B1E7581A1711377200A77DA6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				DSTROOT = /tmp/PMConcurrency.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "PMConcurrency/PMConcurrency-Prefix.pch";
 				OTHER_LDFLAGS = "-ObjC";
