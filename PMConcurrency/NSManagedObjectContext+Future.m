@@ -16,33 +16,19 @@
         @throw [NSException exceptionWithName:@"NSInvalidArgumentException" reason:@"the block passed to performFuture must not be nil." userInfo:nil];
     }
     
-    callback_runner callbackRunner;
+    PMFuture *promise = [PMFuture future];
     if(self.concurrencyType == NSConfinementConcurrencyType) {
         //confinement concurrency means the caller is responsible for executing us in the proper thread
-        callbackRunner = ^(callback_block callback){
-            callback();
-        };
+        [promise tryComplete:block()];
     } else {
-        callbackRunner = ^(callback_block callback){
-            [self performBlock:^{
-                callback();
-            }];
-        };
+        [self performBlock:^{
+            if(promise.isCancelled) {
+                return;
+            }
+            [promise tryComplete:block()];
+        }];
     }
     
-    //set the queue on the promise to nil to make sure its callbacks execute on the thread that the
-    //supplied block executes on (which should be the designated thread for the context)
-    PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:callbackRunner];
-    //execute the main body of the future in the callback runner
-    callbackRunner(^{
-        NSError *error = nil;
-        id value = block(&error);
-        if(error != nil) {
-            [promise tryFail:error];
-        } else {
-            [promise tryComplete:value];
-        }
-    });
     return promise;
 }
 @end

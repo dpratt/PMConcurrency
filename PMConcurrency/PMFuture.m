@@ -6,6 +6,7 @@
 //
 
 #import "PMFuture.h"
+#import "PMFutureOperation.h"
 
 NSString * const kPMFutureErrorDomain = @"PMFutureErrorDomain";
 
@@ -38,10 +39,10 @@ typedef enum {
 }
 
 + (instancetype)futureWithBlock:(future_block)block {
-    return [self futureWithBlock:block withQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
+    return [self futureWithBlock:block andQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
 }
 
-+ (instancetype)futureWithBlock:(future_block)block withQueue:(dispatch_queue_t)queue {
++ (instancetype)futureWithBlock:(future_block)block andQueue:(dispatch_queue_t)queue {
     if(block == nil) {
         @throw [NSException exceptionWithName:@"NSInvalidArgumentException"
                                        reason:@"The block supplied to futureWithBlock must not be nil."
@@ -50,16 +51,28 @@ typedef enum {
     
     PMFuture *retval = [[PMFuture alloc] initWithQueue:queue];
     dispatch_async(queue, ^{
-        NSError *error = nil;
-        id result = block(&error);
-        if(error != nil) {
-            [retval tryFail:error];
-        } else {
-            [retval tryComplete:result];
+        //checking if it's complete avoids running the block if the future has been cancelled or completed externally
+        if(!retval.isCompleted) {
+            [retval tryComplete:block()];
         }
     });
     return retval;
 }
+
+//+ (instancetype)futureWithBlock:(future_block)block operationQueue:(NSOperationQueue *)queue andPriority:(NSOperationQueuePriority)priority {
+//    if(block == nil) {
+//        @throw [NSException exceptionWithName:@"NSInvalidArgumentException"
+//                                       reason:@"The block supplied to futureWithBlock must not be nil."
+//                                     userInfo:nil];
+//    }
+//    
+//    PMFutureOperation *op = [PMFutureOperation futureOperationWithBlock:^id {
+//        return block();
+//    }];
+//    [op setQueuePriority:priority];
+//    [queue addOperation:op];
+//    return op.future;
+//}
 
 + (instancetype)futureWithResult:(id)result {
     PMFuture *future = [self future];
@@ -76,9 +89,14 @@ typedef enum {
 + (instancetype)sequenceFutures:(NSArray *)futures {
     PMFuture *promise = [PMFuture futureWithResult:[NSMutableArray arrayWithCapacity:futures.count]];
     for(PMFuture *future in futures) {
-        promise = [promise flatMap:^PMFuture *(NSMutableArray *promiseResult, NSError **flatError) {
-            PMFuture *futureOfResultArray = [future map:^id(id result, NSError **error) {
-                [promiseResult addObject:result];
+        promise = [promise map:^PMFuture *(NSMutableArray *promiseResult) {
+            PMFuture *futureOfResultArray = [future map:^id(id result) {
+                if(result != nil) {
+                    [promiseResult addObject:result];
+                } else {
+                    NSLog(@"Future sequenced with nil result.");
+                    [promiseResult addObject:[NSNull null]];
+                }
                 return promiseResult;
             }];
             return futureOfResultArray;
@@ -107,9 +125,11 @@ typedef enum {
     long result = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC));
     if(result != 0) {
         //timed out!
-        *error = [NSError errorWithDomain:kPMFutureErrorDomain
-                                     code:kPMFutureErrorTimeout
-                                 userInfo:@{NSLocalizedDescriptionKey : @"Timed out waiting for result of future."}];
+        if(error != NULL) {
+            *error = [NSError errorWithDomain:kPMFutureErrorDomain
+                                         code:kPMFutureErrorTimeout
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Timed out waiting for result of future."}];
+        }
         return nil;
     } else {
         return futureResult;
@@ -130,43 +150,68 @@ typedef enum {
 }
 
 - (BOOL)tryComplete:(id)value {
+    if([value isKindOfClass:[NSError class]]) {
+        return [self tryFail:value];
+    } else if([value isKindOfClass:[PMFuture class]]) {
+        return [self completeWith:value];
+    } else {
+        return [self trySuccess:value];
+    }
+}
+
+- (BOOL)trySuccess:(id)value {
+    BOOL didComplete = NO;
     [_stateLock lock];
-    _value = value;
-    BOOL didComplete = [self complete:Success];
+    if(!self.isCompleted) {
+#ifdef DEBUG
+        if([value isKindOfClass:[PMFuture class]]) {
+            [NSException raise:@"PMFutureException" format:@"Cannot complete a PMFuture with another Future - use tryComplete or completeWith instead.", nil];
+        }
+        if(value == nil) {
+            [NSException raise:@"PMFutureException" format:@"Cannot complete a PMFuture with a nil value.", nil];            
+        }
+#endif
+        _value = value;
+        didComplete = [self complete:Success];
+    }
     [_stateLock unlock];
-    return didComplete;
+    return didComplete;    
 }
 
 - (BOOL)tryFail:(NSError *)error {
+    BOOL didComplete = NO;
     [_stateLock lock];
-    if(error == nil) {
-        //we're being marked as a failure, but with no error.
-        _error = [NSError errorWithDomain:kPMFutureErrorDomain
-                                     code:kPMFutureErrorUnknown
-                                 userInfo:@{NSLocalizedDescriptionKey : @"Future marked as failed, but with no supplied error."}];
-    } else {
-        _error = error;
+    if(!self.isCompleted) {
+        if(error == nil) {
+            //we're being marked as a failure, but with no error.
+            _error = [NSError errorWithDomain:kPMFutureErrorDomain
+                                         code:kPMFutureErrorUnknown
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Future marked as failed, but with no supplied error."}];
+        } else {
+            _error = error;
+        }
+        didComplete = [self complete:Failure];
     }
-    BOOL didComplete = [self complete:Failure];
     [_stateLock unlock];
     return didComplete;
 }
 
 - (BOOL)completeWith:(PMFuture *)otherFuture {
-    [_stateLock lock];
     BOOL didComplete = NO;
+    [_stateLock lock];
     if(!self.isCompleted) {
         didComplete = YES;
+        __weak PMFuture *weakSelf = self;
         [otherFuture onComplete:^(id result, NSError *error) {
             if(error != nil) {
-                [self tryFail:error];
+                [weakSelf tryFail:error];
             } else {
-                [self tryComplete:result];
+                [weakSelf tryComplete:result];
             }
         }];
         //ensure that this future is cancelled if the parent future is cancelled.
         [otherFuture onCancel:^{
-            [self cancel];
+            [weakSelf cancel];
         }];
     }
     [_stateLock unlock];
@@ -248,7 +293,7 @@ typedef enum {
     }];
 }
 
-- (PMFuture *)map:(id (^)(id value, NSError** error))mapper {
+- (PMFuture *)map:(id (^)(id value))mapper {
     if(mapper == nil) return self;
     
     PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
@@ -256,83 +301,34 @@ typedef enum {
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
             [promise tryFail:error];
-        } else {
-            NSError *nestedError = nil;
-            id mapped = mapper(result, &nestedError);
-            if(nestedError != nil) {
-                //an error in the mapper function itself
-                [promise tryFail:nestedError];
-            } else {
-                [promise tryComplete:mapped];
-            }        
-        }
-    }];
-    
-    return promise;
-}
-
-- (PMFuture *)flatMap:(PMFuture *(^)(id value, NSError** error))mapper {
-    if(mapper == nil) return self;
-    
-    PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
-    
-    [self onComplete:^(id result, NSError *error) {
-        if(error != nil) {
-            [promise tryFail:error];
-        } else {
-            NSError *nestedError = nil;
-            PMFuture *nested = mapper(result, &nestedError);
-            if(nestedError != nil) {
-                //there was an error in the mapper itself
-                //the promise returned by this method should be failed
-                [promise tryFail:nestedError];
-            } else {
-                [nested onComplete:^(id result, NSError *error) {
-                    if(error != nil) {
-                        [promise tryFail:error];
-                    } else {
-                        [promise tryComplete:result];
-                    }
-                }];
+        } else {            
+            id mapped = mapper(result);
+#ifdef DEBUG
+            if(mapped == nil) {
+                [NSException raise:@"PMFutureException" format:@"Cannot map a PMFuture with a nil value.", nil];
             }
+#endif
+
+            [promise tryComplete:mapped];
         }
     }];
-    
+
     return promise;
 }
 
-- (PMFuture *)recover:(recover_block)recoverBlock {
+- (PMFuture *)recover:(id (^)(NSError *error))recoverBlock {
     if(recoverBlock == nil) return self;
     
     PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
     [self onComplete:^(id result, NSError *error) {
-        if(error != nil) {
-            NSError *internalError = error;
-            id internalResult = recoverBlock(&internalError);
-            if(internalError != nil) {
-                [other tryFail:internalError];
+        if(error != nil) {            
+            id recoverVal = recoverBlock(error);
+            if([recoverVal isKindOfClass:[NSError class]]) {
+                [other tryFail:recoverVal];
+            } else if([recoverVal isKindOfClass:[PMFuture class]]) {
+                [other completeWith:recoverVal];
             } else {
-                [other tryComplete:internalResult];
-            }
-        } else {
-            [other tryComplete:result];
-        }
-    }];
-    return other;
-}
-
-- (PMFuture *)recoverWith:(flat_recover_block)recoverBlock {
-    if(recoverBlock == nil) return self;
-    
-    PMFuture *other = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
-    [self onComplete:^(id result, NSError *error) {
-        if(error != nil) {
-            NSError *internalError = error;
-            PMFuture *internalResult = recoverBlock(&internalError);
-            if(internalError != nil) {
-                [other tryFail:internalError];
-            } else {
-                [other completeWith:internalResult];
+                [other tryComplete:recoverVal];
             }
         } else {
             [other tryComplete:result];
@@ -415,6 +411,8 @@ typedef enum {
     if(_state == Incomplete) {
         didComplete = YES;
         callbackBlocks = _callbacks;
+        //it's important that we clear out the callbacks here - these blocks
+        //can hold long reference chains that we no longer will need once they've been executed.
         _callbacks = nil;
         _state = newState;
     }
@@ -438,9 +436,10 @@ typedef enum {
         _state = Incomplete;
         _callbacks = [NSMutableArray array];
         _stateLock = [[NSRecursiveLock alloc] init];
+        __weak PMFuture *weakSelf = self;
         //ensure that we cancel when our dependent future does as well.
         [parent onCancel:^{
-            [self cancel];
+            [weakSelf cancel];
         }];
         _callbackRunner = callbackRunner;
     }

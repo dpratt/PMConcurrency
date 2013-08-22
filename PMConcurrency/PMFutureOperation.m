@@ -58,15 +58,28 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 
 @interface PMFutureOperation ()
 
+/**
+ The result of this operation. Accessing this value before 'isFinished' is true will throw an exception. If there was an error
+ executing this operation, the value will be nil.
+ */
+@property (readwrite, nonatomic, strong) id result;
+
+/**
+ The error, if any, that occurred while executing the operation. This value is undefined and invalid if 'isFinished' is false.
+ */
+@property (readwrite, nonatomic, strong) NSError *error;
+
 @property (readwrite, nonatomic, assign) PMOperationState state;
 //since this is a conPMrrent operation, we need a lock to ensure that
 //our spawned threads don't conflict with each other. We could just surround
 //all sensitive calls in @synchronized(self) but I actually prefer an
 //explicit lock
 @property (readwrite, nonatomic, strong) NSRecursiveLock *lock;
+
 @property (readwrite, nonatomic, assign, getter = isCancelled) BOOL cancelled;
+
+// The result of this operation.
 @property (readwrite, nonatomic, strong) PMFuture *future;
-@property (nonatomic, strong) future_block futureBody;
 
 @end
 
@@ -76,15 +89,23 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
     return [[PMFutureOperation alloc] initWithBlock:block];
 }
 
-- (instancetype)initWithBlock:(future_block)block {
++ (instancetype)futureOperation {
+    return [[PMFutureOperation alloc] init];
+}
+
+- (instancetype)initWithBlock:(future_block)body {
     if(self = [super init]) {
-        self.lock = [[NSRecursiveLock alloc] init];
-        self.lock.name = @"com.primemoverlabs.futureoperation.lock";
-        self.future = [PMFuture future];
-        self.state = PMOperationReadyState;
-        self.futureBody = block;
+        _lock = [[NSRecursiveLock alloc] init];
+        _lock.name = @"com.primemoverlabs.futureoperation.lock";
+        _operationBody = body;
+        _state = PMOperationReadyState;
     }
     return self;
+    
+}
+
+- (instancetype)init {
+    return [self initWithBlock:nil];
 }
 
 - (void)setState:(PMOperationState)state {
@@ -130,20 +151,33 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
             //if we're cancelled, just mark as finished.
             [self finish];
         } else {
-            if(self.futureBody) {
-                NSError *error = nil;
-                id result = self.futureBody(&error);
-                if(error != nil) {
-                    [self.future tryFail:error];
+            if(self.operationBody) {
+                id bodyResult = self.operationBody();
+                if([bodyResult isKindOfClass:[PMFuture class]]) {
+                    self.future = bodyResult;
                 } else {
-                    [self.future tryComplete:result];
+                    self.future = [PMFuture future];
+                    [self.future tryComplete:bodyResult];
                 }
+                
+                //this operation flips to finished when the contained future completes
+                __weak PMFutureOperation *weakSelf = self;
+                [self.future onComplete:^(id result, NSError *error) {
+                    weakSelf.result = result;
+                    weakSelf.error = error;
+                    [weakSelf finish];
+                }];
+                [self.future onCancel:^{
+                    [weakSelf cancel];
+                }];
+                //don't need it anymore
+                self.operationBody = nil;
             } else {
+                [self finish];
                 NSLog(@"Completing future with no body.");
-                [self.future tryComplete:nil];
             }
-            [self finish];
         }
+        self.operationBody = nil;
     }
     [self.lock unlock];
 }
@@ -155,17 +189,19 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
         _cancelled = YES;
         [super cancel];
         [self didChangeValueForKey:@"isCancelled"];
-        [self.future tryFail:[NSError errorWithDomain:kPMFutureErrorDomain
-                                                 code:kPMFutureErrorCancelled
-                                             userInfo:@{NSLocalizedDescriptionKey : @"Operation cancelled."}]];
+        [self.future cancel];
+        if(self.isExecuting) {
+            [self finish];
+        }
     }
     [self.lock unlock];
 }
 
 - (void)finish {
     [self.lock lock];
-    //TODO: call the finish handler in a dispatch queue?
     self.state = PMOperationFinishedState;
+    self.future = nil;
+    self.operationBody = nil;
     [self.lock unlock];
 }
 

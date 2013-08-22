@@ -13,10 +13,7 @@
 typedef void (^callback_block)(void);
 typedef void (^callback_runner)(callback_block callback);
 
-typedef id (^future_block)(NSError **error);
-
-typedef id (^recover_block)(NSError **error);
-typedef PMFuture *(^flat_recover_block)(NSError **error);
+typedef id (^future_block)(void);
 
 extern NSString * const kPMFutureErrorDomain;
 
@@ -57,7 +54,14 @@ typedef enum {
 /*
  Return a future that will be completed with the result of executing the supplied block on the specified queue.
  */
-+ (instancetype)futureWithBlock:(future_block)block withQueue:(dispatch_queue_t)queue;
++ (instancetype)futureWithBlock:(future_block)block andQueue:(dispatch_queue_t)queue;
+
+/*
+ Return a new future that will be completed with the result of executing the supplied block on the supplied NSOperationQueue.
+ Note - the callbacks from this Future will *not* execute on the NSOperationQueue, but rather an unspecified background dispatch queue.
+ This is in order to guarantee that the callbacks are not abandoned in case the NSOperationQueue cancels all it's operations.
+ */
+//+ (instancetype)futureWithBlock:(future_block)block operationQueue:(NSOperationQueue *)queue andPriority:(NSOperationQueuePriority)priority;
 
 /*
  Return a Future that is instantly completed with the supplied value.
@@ -88,13 +92,13 @@ typedef enum {
  If this Future has completed successfully, this is the value of the future. If this is still uncompleted or 
  completed with an error, the value of this property is undefined.
  */
-@property (nonatomic, strong) id value;
+@property (nonatomic, strong, readonly) id value;
 
 /*
  If this Future completed with an error, the value of the error. If this is still uncompleted or
  completed successfully, the value of this property is undefined.
  */
-@property (nonatomic, strong) NSError *error;
+@property (nonatomic, strong, readonly) NSError *error;
 
 /*
  The designated initializer for PMFuture.
@@ -143,20 +147,36 @@ typedef enum {
 
 /*
  Return a future with a transformed result. The eventual future will consist of either the value produced by
- this Future and then transformed by the supplied block, or an error.
+ this Future and then transformed by the supplied block, or an error. The resulting Future is populated by the following rules -
+   - If the result of the mapper is an NSError*, the resulting future is failed with the same error.
+   - If the result of the mapper is a PMFuture*, the resulting future will be completed with the eventual value (or error) of the mapped result PMFuture.
+   - If the result is any other type, the resulting Future will be completed with this value.
  */
-- (PMFuture *)map:(id (^)(id value, NSError** error))mapper;
+- (PMFuture *)map:(id (^)(id value))mapper;
 
 /*
- The flattened version of the above. Transform the eventual result of this future using supplied 
- block that produces another future.
+ Attempt to recover this future from an error. The passed in block will be executed when this Future is completed
+ with an error. This method is similar to the 'map' function, but instead for errors.
+ - If the result of the recover block is an NSError*, the resulting future is failed with the same error.
+ - If the result of the recover block is a PMFuture*, the resulting future will be completed with the eventual value (or error) of the mapped result PMFuture.
+ - If the result is any other type, the resulting Future will be completed with this value.
  */
-- (PMFuture *)flatMap:(PMFuture *(^)(id value, NSError** error))mapper;
+- (PMFuture *)recover:(id (^)(NSError *error))recoverBlock;
 
 /*
- Complete this future with the specified value. Returns NO if this future has already been completed.
+ Attempt to complete this future with the supplied value, according to the following rules:
+ - If the value is an NSError*, this future will be failed with the error - this is the same as calling tryFail:
+ - If the value is a PMFuture*, this future will be completed with the eventual value of this future - this is the same as calling completeWith:
+ - If the value is any other type, this future will completed with the value - this is the same as calling trySuccess
  */
 - (BOOL)tryComplete:(id)result;
+
+/*
+ Complete this future with the specified value. Returns NO if this future has already been completed. 
+ Note - this method does not examine the type of the value - if this method is used directly, it's possible 
+ to successfully complete with an NSError or PMFuture, which is likely not what you want.
+ */
+- (BOOL)trySuccess:(id)value;
 
 /*
  Complete this future with the specified failure. Return NO if this future has already been completed.
@@ -172,20 +192,6 @@ typedef enum {
  Returns NO if this future has already been completed or associated with another parent future.
  */
 - (BOOL)completeWith:(PMFuture *)otherFuture;
-
-/*
- Attempt to recover this future from an error. The passed in block will be executed when this Future is completed
- with an error. The associated error will be passed in as an argument to the block, and this method assumes that
- if the error parameter is still populated (i.e. not nil) after the block executes the error cannot be handled.
- If the error parameter is set to nil, the Future produced by this method will be completed with the value 
- returned from the specified block.
- */
-- (PMFuture *)recover:(recover_block)recoverBlock;
-
-/*
- The flattened version of the above - attempt to recover this future with the the future returned by recoverBlock.
- */
-- (PMFuture *)recoverWith:(flat_recover_block)recoverBlock;
 
 /*
  Set a time bound on this future - if it does not complete or fail inside of the specified interval, the returned

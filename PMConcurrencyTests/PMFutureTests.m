@@ -41,21 +41,33 @@
 }
 
 - (void)testCompleteWith {
+
     PMFuture *future = [PMFuture future];
-    [future completeWith:[PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
-        return @"Hi there.";
-    }]];
-    
+
+    //simulate creating a different future in another thread
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        @autoreleasepool {
+            PMFuture *other = [PMFuture futureWithBlock:^id {
+                NSLog(@"Sleeping.");
+                [NSThread sleepForTimeInterval:5.0];
+                NSLog(@"Done sleeping.");
+                return @YES;
+            }];
+            NSLog(@"Completing with other.");
+            [future completeWith:other];
+        }
+    });
+        
     NSError *blockingError = nil;
-    id value = [PMFuture awaitResult:future withTimeout:0.1 andError:&blockingError];
+    id value = [PMFuture awaitResult:future withTimeout:10.0 andError:&blockingError];
     STAssertNil(blockingError, @"Got an error - %@", blockingError);
     STAssertNotNil(value, @"Expected a non-nil value.");
-    STAssertEqualObjects(value, @"Hi there.", @"Expected value to be \"Hi there.\" got %@", value);
+    STAssertEqualObjects(value, @YES, @"Expected value to be @YES got %@", value);
 }
 
 - (void)testMap {
-    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result, NSError **error) {
-        return [NSNumber numberWithInt:[result intValue] + 1];
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id value) {
+        return [NSNumber numberWithInt:[value intValue] + 1];
     }];
 
     id value = [PMFuture awaitResult:future withTimeout:10.0 andError:nil];
@@ -65,10 +77,8 @@
 }
 
 - (void)testMapFailure {
-    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result, NSError **error) {
-        *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
-        //return a value and ensure that it gets discarded
-        return @"Hi there.";
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^id(id result) {
+        return [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
     }];
     
     NSError *futureError = nil;
@@ -83,8 +93,8 @@
 
 - (void)testFlatMap {
     
-    PMFuture *future = [[PMFuture futureWithResult:@1] flatMap:^PMFuture *(id value, NSError *__autoreleasing *error) {
-        return [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^PMFuture *(id value) {
+        return [PMFuture futureWithBlock:^id {
             return [NSNumber numberWithInt:[value intValue] + 1];
         }];
     }];
@@ -97,11 +107,9 @@
 
 - (void)testFlatMapFailure {
     
-    PMFuture *future = [[PMFuture futureWithResult:@1] flatMap:^PMFuture *(id value, NSError *__autoreleasing *error) {
-        return [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
-            *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
-            //return a value and ensure that it gets discarded
-            return @"Hi there.";
+    PMFuture *future = [[PMFuture futureWithResult:@1] map:^PMFuture *(id value) {
+        return [PMFuture futureWithBlock:^id {
+            return [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
         }];
     }];
     
@@ -121,13 +129,13 @@
 - (void)testSequence {
     
     NSArray *futures = @[
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              return @1;
                          }],
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              return @2;
                          }],
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              return @3;
                          }]
                          ];
@@ -152,15 +160,14 @@
 - (void)testSequenceFailed {
     
     NSArray *futures = @[
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              return @1;
                          }],
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              //fail this single future
-                             *error = [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
-                             return @"Foo";
+                             return [NSError errorWithDomain:@"TestDomain" code:100 userInfo:@{NSLocalizedDescriptionKey : @"Hi there."}];
                          }],
-                         [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+                         [PMFuture futureWithBlock:^id {
                              return @3;
                          }]
                          ];
@@ -254,7 +261,7 @@
 
 - (void)testBlockingTimeout {
     
-    PMFuture *future = [PMFuture futureWithBlock:^id(NSError *__autoreleasing *error) {
+    PMFuture *future = [PMFuture futureWithBlock:^id {
         [NSThread sleepForTimeInterval:0.5];
         return @"Hi there.";
     }];

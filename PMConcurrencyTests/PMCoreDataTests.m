@@ -20,12 +20,16 @@
     NSManagedObjectContext *moc = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSConfinementConcurrencyType];
     [moc setPersistentStoreCoordinator:psc];
     
-    PMFuture *entityFuture = [moc performFuture:^id(NSError *__autoreleasing *error) {
+    PMFuture *entityFuture = [moc performFuture:^id {
         PMTestEntity *ent = [NSEntityDescription insertNewObjectForEntityForName:@"PMTestEntity" inManagedObjectContext:moc];
         ent.name = @"Sample Entity";
         ent.entityId = @2;
-        [moc save:error];
-        return ent;
+        NSError *error = nil;
+        if(![moc save:&error]) {
+            return error;
+        } else {
+            return ent;
+        }
     }];
     
     [entityFuture onComplete:^(id result, NSError *error) {
@@ -44,15 +48,19 @@
     NSManagedObjectContext *moc = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
     [moc setPersistentStoreCoordinator:psc];
 
-    PMFuture *entityFuture = [moc performFuture:^id(NSError *__autoreleasing *error) {
+    PMFuture *entityFuture = [moc performFuture:^id {
         PMTestEntity *ent = [NSEntityDescription insertNewObjectForEntityForName:@"PMTestEntity" inManagedObjectContext:moc];
         ent.name = @"Sample Entity";
         ent.entityId = @2;
-        [moc save:error];
-        return ent;
+        NSError *error = nil;
+        if(![moc save:&error]) {
+            return error;
+        } else {
+            return ent;
+        }
     }];
 
-    [entityFuture map:^id(PMTestEntity *testEntity, NSError **error) {
+    [entityFuture map:^id(PMTestEntity *testEntity) {
         testEntity.entityId = @3;
         return testEntity;
     }];
