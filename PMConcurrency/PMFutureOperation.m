@@ -196,6 +196,7 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
         self.operationBody = nil;
         self.future = nil;
         if(self.isExecuting) {
+            //only transition to finished if we're actually currently executing.
             self.state = PMOperationFinishedState;
         }
     }

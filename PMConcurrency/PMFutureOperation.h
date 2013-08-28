@@ -14,9 +14,6 @@
  */
 @interface PMFutureOperation : NSOperation
 
-// The result of this operation.
-//@property (readonly, nonatomic, strong) PMFuture *future;
-
 /*
  A block that will be the source of this operation's computation. This is a block that returns a PMFuture. When this returned future completes,
  this operation completes.
