@@ -19,13 +19,17 @@
     PMFuture *promise = [PMFuture future];
     if(self.concurrencyType == NSConfinementConcurrencyType) {
         //confinement concurrency means the caller is responsible for executing us in the proper thread
-        [promise tryComplete:block()];
+        @autoreleasepool {
+            [promise tryComplete:block()];
+        }
     } else {
         [self performBlock:^{
-            if(promise.isCancelled) {
-                return;
-            }
-            [promise tryComplete:block()];
+            @autoreleasepool {
+                if(promise.isCancelled) {
+                    return;
+                }
+                [promise tryComplete:block()];
+            }         
         }];
     }
     

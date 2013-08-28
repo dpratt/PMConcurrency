@@ -9,10 +9,6 @@
 
 @class PMFuture;
 
-//internal details
-typedef void (^callback_block)(void);
-typedef void (^callback_runner)(callback_block callback);
-
 typedef id (^future_block)(void);
 
 extern NSString * const kPMFutureErrorDomain;
@@ -104,11 +100,6 @@ typedef enum {
  The designated initializer for PMFuture.
  */
 - (instancetype)initWithQueue:(dispatch_queue_t)queue;
-
-/*
- Use when you need more advanced control over the context in which callbacks execute.
- */
-- (instancetype)initWithCallbackRunner:(callback_runner)callbackRunner;
 
 /*
  Attempt to cancel this Future if it has not yet completed. If the cancellation succeeds, no further 
@@ -210,13 +201,5 @@ typedef enum {
  Return a copy of this future that will execute it's callbacks on the main thread.
  */
 - (PMFuture *)onMainThread;
-
-/*
- Return a copy of this Future that will execute it's callbacks using the specified runner. The new Future will complete
- with the same result as the original (and at the same time) but any callbacks added to this future will execute
- in the new queue.
- */
-- (PMFuture *)withCallbackRunner:(callback_runner)callbackRunner;
-
 
 @end

@@ -153,8 +153,10 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
         } else {
             if(self.operationBody) {
                 id bodyResult = self.operationBody();
+                
                 if([bodyResult isKindOfClass:[PMFuture class]]) {
-                    self.future = bodyResult;
+                    PMFuture *innerF = (PMFuture *)bodyResult;
+                    self.future = innerF;
                 } else {
                     self.future = [PMFuture future];
                     [self.future tryComplete:bodyResult];
@@ -163,18 +165,19 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
                 //this operation flips to finished when the contained future completes
                 __weak PMFutureOperation *weakSelf = self;
                 [self.future onComplete:^(id result, NSError *error) {
-                    weakSelf.result = result;
-                    weakSelf.error = error;
-                    [weakSelf finish];
+                    __strong PMFutureOperation *strongSelf = weakSelf;
+                    strongSelf->_result = result;
+                    strongSelf->_error = error;
+                    [strongSelf finish];
                 }];
                 [self.future onCancel:^{
-                    [weakSelf cancel];
+                    __strong PMFutureOperation *strongSelf = weakSelf;
+                    [strongSelf cancel];
                 }];
                 //don't need it anymore
                 self.operationBody = nil;
             } else {
                 [self finish];
-                NSLog(@"Completing future with no body.");
             }
         }
         self.operationBody = nil;
@@ -190,8 +193,10 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
         [super cancel];
         [self didChangeValueForKey:@"isCancelled"];
         [self.future cancel];
+        self.operationBody = nil;
+        self.future = nil;
         if(self.isExecuting) {
-            [self finish];
+            self.state = PMOperationFinishedState;
         }
     }
     [self.lock unlock];
