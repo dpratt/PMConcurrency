@@ -19,7 +19,7 @@ typedef enum {
 
 //internal details
 typedef void (^callback_block)();
-typedef void (^callback_runner)(FutureState state, id result, NSError* error, callback_block callback);
+typedef void (^callback_runner)(callback_block callback);
 
 @interface PMFuture () {
     NSMutableArray *_callbacks;
@@ -259,18 +259,17 @@ typedef void (^callback_runner)(FutureState state, id result, NSError* error, ca
 - (void)onComplete:(void (^)(id result, NSError *error))completeBlock {
     if(completeBlock == nil) return;
     
-    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
-        //don't run completion blocks for cancelled futures
-        if(state != Cancelled && state != Incomplete) {
-            completeBlock(internalResult, internalError);
+    [self invokeOrAddCallback:^{
+        if(self.isCompleted && !self.isCancelled) {
+            completeBlock(self.value, self.error);
         }
     }];
 }
 
 - (void)onCancel:(void (^)())cancelBlock {
     if(cancelBlock == nil) return;
-    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
-        if(state == Cancelled) {
+    [self invokeOrAddCallback:^{
+        if(self.isCancelled) {
             cancelBlock();
         }
     }];
@@ -361,7 +360,7 @@ typedef void (^callback_runner)(FutureState state, id result, NSError* error, ca
 
 #pragma mark - internal private methods
 
-- (void)invokeOrAddCallback:(void(^)(FutureState state, id internalResult, NSError *internalError))block {
+- (void)invokeOrAddCallback:(callback_block)block {
     
     if(block == nil) return;
     
@@ -403,7 +402,7 @@ typedef void (^callback_runner)(FutureState state, id result, NSError* error, ca
 }
 
 - (void)runBlock:(callback_block)block {
-    _callbackRunner(_state, _value, _error, block);
+    _callbackRunner(block);
 }
 
 //internal use only
@@ -425,9 +424,9 @@ typedef void (^callback_runner)(FutureState state, id result, NSError* error, ca
 }
 
 - (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
-    return [self initWithCallbackRunner:^(FutureState state, id value, NSError* error, callback_block callback) {
+    return [self initWithCallbackRunner:^(callback_block callback) {
         dispatch_async(queue, ^{
-            callback(state, value, error);
+            callback();
         });
     } andParent:parent];
 }
