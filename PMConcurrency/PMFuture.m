@@ -18,8 +18,8 @@ typedef enum {
 } FutureState;
 
 //internal details
-typedef void (^callback_block)();
-typedef void (^callback_runner)(callback_block callback);
+typedef void (^callback_block)(FutureState state, id internalResult, NSError *internalError);
+typedef void (^callback_runner)(FutureState state, id internalResult, NSError *internalError, callback_block callback);
 
 @interface PMFuture () {
     NSMutableArray *_callbacks;
@@ -259,17 +259,17 @@ typedef void (^callback_runner)(callback_block callback);
 - (void)onComplete:(void (^)(id result, NSError *error))completeBlock {
     if(completeBlock == nil) return;
     
-    [self invokeOrAddCallback:^{
-        if(self.isCompleted && !self.isCancelled) {
-            completeBlock(self.value, self.error);
+    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
+        if(state != Incomplete && state != Cancelled) {
+            completeBlock(internalResult, internalError);
         }
     }];
 }
 
 - (void)onCancel:(void (^)())cancelBlock {
     if(cancelBlock == nil) return;
-    [self invokeOrAddCallback:^{
-        if(self.isCancelled) {
+    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
+        if(state == Cancelled) {
             cancelBlock();
         }
     }];
@@ -402,7 +402,7 @@ typedef void (^callback_runner)(callback_block callback);
 }
 
 - (void)runBlock:(callback_block)block {
-    _callbackRunner(block);
+    _callbackRunner(_state, _value, _error, block);
 }
 
 //internal use only
@@ -424,9 +424,9 @@ typedef void (^callback_runner)(callback_block callback);
 }
 
 - (instancetype)initWithQueue:(dispatch_queue_t)queue andParent:(PMFuture *)parent {
-    return [self initWithCallbackRunner:^(callback_block callback) {
+    return [self initWithCallbackRunner:^(FutureState state, id internalResult, NSError *internalError, callback_block callback) {
         dispatch_async(queue, ^{
-            callback();
+            callback(state, internalResult, internalError);
         });
     } andParent:parent];
 }
