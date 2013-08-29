@@ -55,10 +55,7 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
     
     PMFuture *retval = [[PMFuture alloc] initWithQueue:queue];
     dispatch_async(queue, ^{
-        //checking if it's complete avoids running the block if the future has been cancelled or completed externally
-        if(!retval.isCompleted) {
-            [retval tryComplete:block()];
-        }
+        [retval tryComplete:block()];
     });
     return retval;
 }

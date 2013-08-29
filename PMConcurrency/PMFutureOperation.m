@@ -148,8 +148,7 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
     if ([self isReady]) {
         self.state = PMOperationExecutingState;
         if([self isCancelled]) {
-            //if we're cancelled, just mark as finished.
-            [self finish];
+            //if we're cancelled, just mark as finished - don't do anything
         } else {
             if(self.operationBody) {
                 id bodyResult = self.operationBody();
