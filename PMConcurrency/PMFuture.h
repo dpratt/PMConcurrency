@@ -84,6 +84,8 @@ typedef enum {
 @property (nonatomic, readonly, getter = isSuccess) BOOL success;
 @property (nonatomic, readonly, getter = isCancelled) BOOL cancelled;
 
+@property (nonatomic, strong) NSString *name;
+
 /*
  If this Future has completed successfully, this is the value of the future. If this is still uncompleted or 
  completed with an error, the value of this property is undefined.

@@ -55,6 +55,10 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
     
     PMFuture *retval = [[PMFuture alloc] initWithQueue:queue];
     dispatch_async(queue, ^{
+        if(retval.isCancelled) {
+            NSLog(@"Not running block due to cancelled promise.");
+            return;
+        }
         [retval tryComplete:block()];
     });
     return retval;
@@ -194,6 +198,14 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         [otherFuture onCancel:^{
             [self cancel];
         }];
+        
+        //create a causal link - namely, these two futures are now intertwined. If the new one gets cancelled,
+        //we cancel our parent as well
+        //keep a weak reference to avoid a retain cycle between these two futures.
+        __weak PMFuture *weakOther = otherFuture;
+        [self onCancel:^{
+            [weakOther cancel];
+        }];
     }
     [_stateLock unlock];
     return didComplete;
@@ -203,7 +215,6 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
     [_stateLock lock];
     if(!self.isCompleted) {
         //not completed yet, we can cancel
-        
         _error = [NSError errorWithDomain:kPMFutureErrorDomain
                                      code:kPMFutureErrorCancelled
                                  userInfo:@{NSLocalizedDescriptionKey : @"The future has been cancelled."}];
@@ -352,7 +363,9 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
 }
 
 - (PMFuture *)onMainThread {
-    return [self withQueue:dispatch_get_main_queue()];
+    PMFuture *other = [self withQueue:dispatch_get_main_queue()];
+    other.name = [NSString stringWithFormat:@"%@%@", self.name, @"-onmain"];
+    return other;
 }
 
 #pragma mark - internal private methods
@@ -409,12 +422,18 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         _state = Incomplete;
         _callbacks = [NSMutableArray array];
         _stateLock = [[NSRecursiveLock alloc] init];
-        __weak PMFuture *weakSelf = self;
         //ensure that we cancel when our dependent future does as well.
         [parent onCancel:^{
-            __strong PMFuture *strongSelf = weakSelf;
-            [strongSelf cancel];
+            [self cancel];
         }];
+        //create a causal link - namely, these two futures are now intertwined. If the new one gets cancelled,
+        //we cancel our parent as well
+        //keep a weak reference to avoid a retain cycle between these two futures.
+        __weak PMFuture *weakOther = parent;
+        [self onCancel:^{
+            [weakOther cancel];
+        }];
+
         _callbackRunner = callbackRunner;
     }
     return self;

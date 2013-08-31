@@ -70,7 +70,8 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 @property (readwrite, nonatomic, strong) NSError *error;
 
 @property (readwrite, nonatomic, assign) PMOperationState state;
-//since this is a conPMrrent operation, we need a lock to ensure that
+
+//since this is a concurrent operation, we need a lock to ensure that
 //our spawned threads don't conflict with each other. We could just surround
 //all sensitive calls in @synchronized(self) but I actually prefer an
 //explicit lock
