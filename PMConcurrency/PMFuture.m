@@ -244,22 +244,17 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
 
 - (void)onSuccess:(void (^)(id result))successBlock {
     if(successBlock == nil) return;
-    __weak PMFuture *weakSelf = self;
-    [self onComplete:^(id myResult, NSError *error) {
-        __strong PMFuture *strongSelf = weakSelf;
-        if(strongSelf.isSuccess) {
-            successBlock(myResult);
+    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
+        if(state == Success) {
+            successBlock(internalResult);
         }
     }];
 }
 
 - (void)onFailure:(void (^)(NSError *error))failureBlock {
-    if(failureBlock == nil) return;
-    __weak PMFuture *weakSelf = self;
-    [self onComplete:^(id result, NSError *myError) {
-        __strong PMFuture *strongSelf = weakSelf;
-        if(!strongSelf.isSuccess) {
-            failureBlock(myError);
+    [self invokeOrAddCallback:^(FutureState state, id internalResult, NSError *internalError) {
+        if(state == Failure) {
+            failureBlock(internalError);
         }
     }];
 }
@@ -287,7 +282,6 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
     if(mapper == nil) return self;
     
     PMFuture *promise = [[PMFuture alloc] initWithCallbackRunner:_callbackRunner andParent:self];
-    
     [self onComplete:^(id result, NSError *error) {
         if(error != nil) {
             [promise tryFail:error];
@@ -364,7 +358,6 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
 
 - (PMFuture *)onMainThread {
     PMFuture *other = [self withQueue:dispatch_get_main_queue()];
-    other.name = [NSString stringWithFormat:@"%@%@", self.name, @"-onmain"];
     return other;
 }
 
