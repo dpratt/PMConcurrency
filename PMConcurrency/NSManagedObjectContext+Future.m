@@ -24,12 +24,10 @@
         }
     } else {
         [self performBlock:^{
-            @autoreleasepool {
-                if(promise.isCancelled) {
-                    return;
-                }
-                [promise tryComplete:block()];
-            }         
+            if(promise.isCancelled) {
+                return;
+            }
+            [promise tryComplete:block()];
         }];
     }
     
