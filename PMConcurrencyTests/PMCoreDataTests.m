@@ -17,7 +17,7 @@
 - (void)testCoreData {
     
     NSPersistentStoreCoordinator *psc = [self createManagedObjectContextForModel:@"TestModel"];
-    NSManagedObjectContext *moc = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSConfinementConcurrencyType];
+    NSManagedObjectContext *moc = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
     [moc setPersistentStoreCoordinator:psc];
     
     PMFuture *entityFuture = [moc performFuture:^id {
@@ -32,13 +32,9 @@
         }
     }];
     
-    [entityFuture onComplete:^(id result, NSError *error) {
-        STAssertNotNil(result, @"Expected a result.");
-        STAssertNil(error, @"Expected no error.");
-    }];
-    
     NSError *blockingError = nil;
-    [PMFuture awaitResult:entityFuture withTimeout:1.0 andError:&blockingError];
+    id result = [PMFuture awaitResult:entityFuture withTimeout:10.0 andError:&blockingError];
+    STAssertNotNil(result, @"Expected a result.");
     STAssertNil(blockingError, @"Expected no error.");
 
 }
@@ -69,6 +65,16 @@
     STAssertNil(blockingError, @"Expected no error.");
     STAssertNotNil(ent, @"Expected entity to be not-nil.");
 
+}
+
+- (void)testException {
+    NSPersistentStoreCoordinator *psc = [self createManagedObjectContextForModel:@"TestModel"];
+    NSManagedObjectContext *moc = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSConfinementConcurrencyType];
+    [moc setPersistentStoreCoordinator:psc];
+    
+    STAssertThrows([moc performBlock:^{
+        NSLog(@"Should have thrown an exception.");
+    }], @"Should have thrown exception.");
 }
 
 - (NSPersistentStoreCoordinator *)createManagedObjectContextForModel:(NSString *)modelName {

@@ -10,17 +10,6 @@
 
 NSString * const kPMFutureErrorDomain = @"PMFutureErrorDomain";
 
-typedef enum {
-    Incomplete = 0,
-    Success   = 1,
-    Failure   = 2,
-    Cancelled = 3
-} FutureState;
-
-//internal details
-typedef void (^callback_block)(FutureState state, id internalResult, NSError *internalError);
-typedef void (^callback_runner)(FutureState state, id internalResult, NSError *internalError, callback_block callback);
-
 @interface PMFuture () {
     NSMutableArray *_callbacks;
     
@@ -28,6 +17,8 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
     FutureState _state;
     
     callback_runner _callbackRunner;
+    
+    dispatch_semaphore_t _completion_latch;
 }
 
 @end
@@ -62,6 +53,10 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         [retval tryComplete:block()];
     });
     return retval;
+}
+
++ (instancetype)futureWithExecutor:(callback_runner)callbackRunner {
+    return [[PMFuture alloc] initWithCallbackRunner:callbackRunner];
 }
 
 + (instancetype)futureWithResult:(id)result {
@@ -99,19 +94,20 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
  Await the result of the supplied future. THIS METHOD BLOCKS THE CURRENT THREAD.
  */
 + (id)awaitResult:(PMFuture *)future withTimeout:(NSTimeInterval)timeout andError:(NSError **)error {
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    __block id futureResult;
-    //this violates the contract slightly - we actually want this callback to execute even if it's cancelled
-    [future invokeOrAddCallback:^(FutureState state, id result, NSError *internalError) {
-        if(internalError != nil) {
-            *error = internalError;
-        } else {
-            futureResult = result;
-        }
-        dispatch_semaphore_signal(sem);
-    }];
+//    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+//    __block id futureResult;
+//    //this violates the contract slightly - we actually want this callback to execute even if it's cancelled
+//    [future invokeOrAddCallback:^(FutureState state, id result, NSError *internalError) {
+//        if(internalError != nil) {
+//            *error = internalError;
+//        } else {
+//            futureResult = result;
+//        }
+//        dispatch_semaphore_signal(sem);
+//    }];
     
-    long result = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC));
+    //wait on the completion semaphore for the future
+    long result = dispatch_semaphore_wait(future->_completion_latch, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_SEC));
     if(result != 0) {
         //timed out!
         if(error != NULL) {
@@ -121,7 +117,10 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         }
         return nil;
     } else {
-        return futureResult;
+        if(error != NULL) {
+            *error = future.error;
+        }
+        return future->_value;
     }
     
 }
@@ -158,6 +157,7 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         }
 #endif
         _value = value;
+        _error = nil;
         didComplete = [self complete:Success];
     }
     [_stateLock unlock];
@@ -176,6 +176,7 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         } else {
             _error = error;
         }
+        _value = nil;
         didComplete = [self complete:Failure];
     }
     [_stateLock unlock];
@@ -394,6 +395,15 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         //can hold long reference chains that we no longer will need once they've been executed.
         _callbacks = nil;
         _state = newState;
+        
+        //if this future is being awaited, signal the waiting thread
+        //we don't do this on a callback to help avoid deadlocks
+        //signaling the awaiting thread in a callback will deadlock
+        //if this future's queue is a serial queue containg the awaiting thread
+        //this means the awaiting thread will continue to execute before the callbacks are run,
+        //but that's okay since the order and timing of callbacks is not guaranteeed by the contract
+        //of PMFuture
+        dispatch_semaphore_signal(_completion_latch);
     }
     [_stateLock unlock];
     if(callbackBlocks != nil) {
@@ -415,6 +425,8 @@ typedef void (^callback_runner)(FutureState state, id internalResult, NSError *i
         _state = Incomplete;
         _callbacks = [NSMutableArray array];
         _stateLock = [[NSRecursiveLock alloc] init];
+        _completion_latch = dispatch_semaphore_create(0);
+        
         //ensure that we cancel when our dependent future does as well.
         [parent onCancel:^{
             [self cancel];

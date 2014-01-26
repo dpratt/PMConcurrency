@@ -16,21 +16,25 @@
         @throw [NSException exceptionWithName:@"NSInvalidArgumentException" reason:@"the block passed to performFuture must not be nil." userInfo:nil];
     }
     
-    PMFuture *promise = [PMFuture future];
-    if(self.concurrencyType == NSConfinementConcurrencyType) {
-        //confinement concurrency means the caller is responsible for executing us in the proper thread
-        @autoreleasepool {
-            [promise tryComplete:block()];
-        }
-    } else {
+    PMFuture *promise = [PMFuture futureWithExecutor:^(FutureState state, id internalResult, NSError *internalError, callback_block callback) {
         [self performBlock:^{
-            @autoreleasepool {
+            callback(state, internalResult, internalError);
+        }];
+    }];
+    if(self.concurrencyType == NSConfinementConcurrencyType) {
+        @throw [NSException exceptionWithName:@"NSInvalidArgumentException" reason:@"performFuture cannot be used with confinement concurrency." userInfo:nil];
+    } else {
+        //prevent deadlocks
+        if(self.concurrencyType == NSMainQueueConcurrencyType && [NSThread isMainThread]) {
+            [promise tryComplete:block()];
+        } else {
+            [self performBlock:^{
                 if(promise.isCancelled) {
                     return;
                 }
                 [promise tryComplete:block()];
-            }
-        }];
+            }];
+        }
     }
     
     return promise;

@@ -19,6 +19,16 @@ typedef enum {
     kPMFutureErrorUnknown = 102
 } PMFutureErrors;
 
+typedef enum {
+    Incomplete = 0,
+    Success   = 1,
+    Failure   = 2,
+    Cancelled = 3
+} FutureState;
+
+typedef void (^callback_block)(FutureState state, id internalResult, NSError *internalError);
+typedef void (^callback_runner)(FutureState state, id internalResult, NSError *internalError, callback_block callback);
+
 
 /*
  A class that models a value that may or may not be immediately available. A PMFuture offers the ability to compose with
@@ -51,6 +61,11 @@ typedef enum {
  Return a future that will be completed with the result of executing the supplied block on the specified queue.
  */
 + (instancetype)futureWithBlock:(future_block)block andQueue:(dispatch_queue_t)queue;
+
+/*
+ Return a future that will execute it's callbacks with the supplied runner.
+ */
++ (instancetype)futureWithExecutor:(callback_runner)callbackRunner;
 
 /*
  Return a new future that will be completed with the result of executing the supplied block on the supplied NSOperationQueue.
