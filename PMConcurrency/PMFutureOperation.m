@@ -77,8 +77,6 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 //explicit lock
 @property (readwrite, nonatomic, strong) NSRecursiveLock *lock;
 
-@property (readwrite, nonatomic, assign, getter = isCancelled) BOOL cancelled;
-
 // The result of this operation.
 @property (readwrite, nonatomic, strong) PMFuture *future;
 
@@ -189,7 +187,6 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
     [self.lock lock];
     if (![self isFinished] && ![self isCancelled]) {
         [self willChangeValueForKey:@"isCancelled"];
-        _cancelled = YES;
         [super cancel];
         [self didChangeValueForKey:@"isCancelled"];
         [self.future cancel];
