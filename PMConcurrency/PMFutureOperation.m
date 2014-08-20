@@ -86,6 +86,8 @@ static inline BOOL PMStateTransitionIsValid(PMOperationState fromState, PMOperat
 
 @implementation PMFutureOperation
 
+@synthesize cancelled = _cancelled;
+
 + (instancetype)futureOperationWithBlock:(future_block)block {
     return [[PMFutureOperation alloc] initWithBlock:block];
 }
